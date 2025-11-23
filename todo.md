@@ -5,7 +5,7 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 ## Phase 1: Project Foundation
 
 - [x] Set up a new Rust project using Cargo.
-- [ ] Choose and integrate a logging framework.
+- [x] Choose and integrate a logging framework.
 - [ ] Choose and integrate a testing framework and set up a basic test.
 - [ ] Set up `cargo-tarpaulin` for code coverage analysis.
 - [ ] Establish a basic CI/CD pipeline (e.g., using GitHub Actions) to build and test on both Linux and Windows.

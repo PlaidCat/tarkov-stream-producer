@@ -1,0 +1,6 @@
+[package]
+name = "tarkov_stream_producer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]

@@ -1,36 +1,90 @@
 # Tarkov Stream Producer - Project Plan
 
 This document outlines the development plan for the Tarkov Stream Producer application.
+**Note:** Each task is designed to be 1-2 hours of implementation time. Track actual time in `.time_tracking.md`.
 
-## Phase 1: Project Foundation
+## Phase 1: Project Foundation ✅
 
 - [x] Set up a new Rust project using Cargo.
 - [x] Choose and integrate a logging framework.
 - [x] Choose and integrate a testing framework and set up a basic test.
 - [x] Set up `cargo-tarpaulin` for code coverage analysis.
 - [x] Establish a basic CI/CD pipeline (e.g., using GitHub Actions) to build and test on both Linux and Windows.
-- [x] **Database Integration:** Choose and integrate a Rust SQL library/ORM (e.g., `sqlx` with SQLite).
+- [x] **Database Integration:** Choose and integrate a Rust SQL library/ORM (`sqlx` with SQLite).
+- [x] **Database Integration:** Create basic connection and unit tests.
 
-## Phase 2: Core Logic and Data Structures
+## Phase 2: Twitch Bot & Data Structure Planning
 
-- [ ] Define the Rust structs to represent game state (e.g., `Raid`, `Player`, `Kill`, etc.).
-- [ ] Implement the core logic for managing the game state (e.g., starting a raid, adding a kill, ending a raid).
-- [ ] Write unit tests for the core logic to meet our 50% coverage goal.
-- [ ] **Database Integration:** Design the database schema for storing raid statistics.
-- [ ] **Database Integration:** Implement functions to save and retrieve raid data from the database.
+### Twitch Bot Integration (4-6 hours total)
+- [ ] Add twitch-irc dependency and create bot module skeleton (1h)
+- [ ] Implement basic connection with anonymous login and channel join (1h)
+- [ ] Add message parsing and command detection (!stats, !kd, !raid) (1.5h)
+- [ ] Create placeholder response system with mock data (1h)
+- [ ] Write unit tests for command parsing (1h)
 
-## Phase 3: Web API (Manual Control)
+### Data Structure Planning (3-4 hours total)
+- [ ] Document required data for Twitch commands (what !stats should show) (1h)
+- [ ] Sketch out Raid entity fields and relationships (1h)
+- [ ] Design database schema with migrations (1.5h)
+- [ ] Review and finalize data structure design document (0.5h)
 
-- [ ] Choose a web framework (like `actix-web` or `axum`).
-- [ ] Implement REST endpoints to control the game state (e.g., `POST /raid/start`, `POST /raid/kill`, `POST /raid/end`). These endpoints will interact with the database.
-- [ ] This will be what your Stream Deck communicates with initially.
+### Core Implementation (6-8 hours total)
+- [ ] Create Rust structs for Raid and Kill with sqlx derives (1h)
+- [ ] Implement database connection pool and initialization (1h)
+- [ ] Write migration files for schema (1h)
+- [ ] Implement CRUD operations for Raid entity (2h)
+- [ ] Implement CRUD operations for Kill entity (1.5h)
+- [ ] Add unit tests for database operations (2h)
+- [ ] Integrate database with Twitch bot commands (1.5h)
 
-## Phase 4: OBS & Twitch Integration
+## Phase 3: Web API & Stream Deck Integration
 
-- [ ] **OBS:** Decide on a method to display stats in OBS. We could generate text files that OBS reads, or use an OBS plugin like the `obs-websocket` plugin to update text sources directly.
-- [ ] **Twitch Bot:** Choose a Twitch bot library for Rust. The bot will connect to the web API to fetch stats and respond to chat commands (e.g., `!stats`, `!kd`).
+### Web API (4-6 hours total)
+- [ ] Choose web framework (actix-web vs axum) and add dependency (0.5h)
+- [ ] Set up basic HTTP server with health check endpoint (1h)
+- [ ] Implement POST /raid/start endpoint with database integration (1.5h)
+- [ ] Implement POST /raid/kill endpoint with database integration (1h)
+- [ ] Implement POST /raid/end endpoint with database integration (1.5h)
+- [ ] Add request validation and error handling (1h)
+- [ ] Write integration tests for all endpoints (2h)
+
+### Stream Deck Integration (3-5 hours total)
+- [ ] Research Elgato Stream Deck SDK and integration options (1h)
+- [ ] Create stream_deck_integration.md with implementation plan (0.5h)
+- [ ] Design button layout and document API mappings (1h)
+- [ ] Implement Stream Deck plugin or configure HTTP requests (2h)
+- [ ] Test end-to-end: Stream Deck → API → Database (1h)
+
+## Phase 4: OBS Integration
+
+### OBS Display (3-4 hours total)
+- [ ] Research OBS integration methods (text files vs obs-websocket) (1h)
+- [ ] Decide on approach and document in obs_integration.md (0.5h)
+- [ ] Implement stats output system (text files or WebSocket client) (2h)
+- [ ] Create example OBS scene with stat overlays (1h)
+- [ ] Test full flow: Stream Deck → API → Database → OBS display (1h)
+
+### End-to-End Testing (2 hours total)
+- [ ] Test complete manual flow with all components (1h)
+- [ ] Document known issues and future improvements (0.5h)
+- [ ] Create user guide for operating the system (0.5h)
 
 ## Phase 5: Automated Screen Analysis
 
-- [ ] **Screen Capture:** Research and implement a cross-platform screen capture library in Rust.
-- [ ] **OCR/Vision:** This is the most complex part. We can start with a pre-trained OCR model (like Tesseract) to read text from the screen. Later, we can explore more advanced computer vision techniques or train a custom model to recognize specific in-game events.
+### Screen Capture (3-4 hours total)
+- [ ] Research cross-platform screen capture libraries (1h)
+- [ ] Implement basic screen capture functionality (2h)
+- [ ] Add tests and verify performance (1h)
+
+### OCR/Vision (6-8 hours total)
+- [ ] Research OCR options (Tesseract, custom models) (1.5h)
+- [ ] Integrate OCR library and test text extraction (2h)
+- [ ] Implement raid start detection logic (1.5h)
+- [ ] Implement kill detection logic (1.5h)
+- [ ] Implement raid end detection logic (1.5h)
+- [ ] Tune accuracy and handle edge cases (2h)
+
+### Automation (2-3 hours total)
+- [ ] Replace manual triggers with automated event detection (1.5h)
+- [ ] Add confidence thresholds and fallback to manual mode (1h)
+- [ ] Test automation with real gameplay (1h)

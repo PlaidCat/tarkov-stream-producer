@@ -1,3 +1,5 @@
+mod db;
+
 use tracing::{info};
 use tracing_subscriber::{self, EnvFilter};
 

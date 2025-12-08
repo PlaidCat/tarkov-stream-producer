@@ -13,58 +13,42 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 - [x] **Database Integration:** Choose and integrate a Rust SQL library/ORM (`sqlx` with SQLite).
 - [x] **Database Integration:** Create basic connection and unit tests.
 
-### Phase 1.b: Windows Debug Executable Production (1-2 hours total)
-- [ ] Add `[profile.release]` with `debug = true` to Cargo.toml (0.25h)
-- [ ] Create `.github/workflows/release.yml` for tagged release builds (0.5h)
-- [ ] Test workflow by creating and pushing a version tag (0.25h)
-- [ ] Verify Windows executable artifact is produced and downloadable (0.25h)
-- [ ] Document completion in CLAUDE.md (0.25h)
+### Phase 1.b: Windows Debug Executable Production ✅ (Completed: 2025-12-08, 0.5h actual)
+- [x] Add `[profile.release]` with `debug = true` to Cargo.toml (0.25h)
+- [x] Create `.github/workflows/release.yml` for tagged release builds (0.5h)
+- [x] Test workflow by creating and pushing a version tag (0.25h)
+- [x] Verify Windows executable artifact is produced and downloadable (0.25h)
+- [x] Document completion in CLAUDE.md (0.25h)
 
 **Note:** See `docs/phase_1b_plan.md` for detailed implementation plan.
 
-## Phase 2: Twitch Bot & Data Structure Planning
+## Phase 2: Core Data & API Foundation
 
-### Twitch Bot Integration (4-6 hours total)
-- [ ] Add twitch-irc dependency and create bot module skeleton (1h)
-- [ ] Implement basic connection with anonymous login and channel join (1h)
-- [ ] Add message parsing and command detection (!stats, !kd, !raid) (1.5h)
-- [ ] Create placeholder response system with mock data (1h)
-- [ ] Write unit tests for command parsing (1h)
+**Focus:** Build essential tracking system with manual control via REST API. Chat bot integration deferred to Phase 5 due to unmaintained dependencies.
 
-### Data Structure Planning (3-4 hours total)
-- [ ] Document required data for Twitch commands (what !stats should show) (1h)
-- [ ] Sketch out Raid entity fields and relationships (1h)
-- [ ] Design database schema with migrations (1.5h)
-- [ ] Review and finalize data structure design document (0.5h)
+### Phase 2a: Data Structure & Database (4-5 hours total)
+- [ ] Document required data (raid stats, kills, player info) (1h)
+- [ ] Design Raid and Kill structs with relationships (1h)
+- [ ] Create database schema and migration files (1h)
+- [ ] Implement CRUD operations for Raid entity with tests (1h)
+- [ ] Implement CRUD operations for Kill entity with tests (1h)
 
-### Core Implementation (6-8 hours total)
-- [ ] Create Rust structs for Raid and Kill with sqlx derives (1h)
-- [ ] Implement database connection pool and initialization (1h)
-- [ ] Write migration files for schema (1h)
-- [ ] Implement CRUD operations for Raid entity (2h)
-- [ ] Implement CRUD operations for Kill entity (1.5h)
-- [ ] Add unit tests for database operations (2h)
-- [ ] Integrate database with Twitch bot commands (1.5h)
-
-## Phase 3: Web API & Stream Deck Integration
-
-### Web API (4-6 hours total)
+### Phase 2b: Web API for Manual Control (4-6 hours total)
 - [ ] Choose web framework (actix-web vs axum) and add dependency (0.5h)
 - [ ] Set up basic HTTP server with health check endpoint (1h)
 - [ ] Implement POST /raid/start endpoint with database integration (1.5h)
 - [ ] Implement POST /raid/kill endpoint with database integration (1h)
 - [ ] Implement POST /raid/end endpoint with database integration (1.5h)
 - [ ] Add request validation and error handling (1h)
-- [ ] Write integration tests for all endpoints (2h)
+- [ ] Write integration tests for all endpoints (1.5h)
 
-### Stream Deck Integration (3-5 hours total)
-- [ ] Research Elgato Stream Deck SDK and integration options (1h)
-- [ ] Create stream_deck_integration.md with implementation plan (0.5h)
-- [ ] Design button layout and document API mappings (1h)
-- [ ] Implement Stream Deck plugin or configure HTTP requests (2h)
+### Phase 2c: Stream Deck Integration (3-4 hours total)
+- [ ] Research Stream Deck HTTP request capabilities (1h)
+- [ ] Document button layout and API mappings in stream_deck_integration.md (1h)
+- [ ] Configure Stream Deck buttons to call API endpoints (1h)
 - [ ] Test end-to-end: Stream Deck → API → Database (1h)
 
-## Phase 4: OBS Integration
+## Phase 3: OBS Integration
 
 ### OBS Display (3-4 hours total)
 - [ ] Research OBS integration methods (text files vs obs-websocket) (1h)
@@ -78,7 +62,7 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 - [ ] Document known issues and future improvements (0.5h)
 - [ ] Create user guide for operating the system (0.5h)
 
-## Phase 5: Automated Screen Analysis
+## Phase 4: Automated Screen Analysis
 
 ### Screen Capture (3-4 hours total)
 - [ ] Research cross-platform screen capture libraries (1h)
@@ -97,3 +81,27 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 - [ ] Replace manual triggers with automated event detection (1.5h)
 - [ ] Add confidence thresholds and fallback to manual mode (1h)
 - [ ] Test automation with real gameplay (1h)
+
+## Phase 5: Chat Bot Integration (Deferred)
+
+**Note:** Chat bot integration deferred until better maintained libraries are available.
+
+### Twitch Bot Integration (4-6 hours total) - DEFERRED
+- [ ] Evaluate current state of Rust Twitch libraries
+- [ ] Choose approach: twitch-irc (unmaintained), direct IRC, or Twitch API
+- [ ] Implement basic connection and message handling
+- [ ] Add command parsing (!stats, !kd, !raid)
+- [ ] Integrate with existing database/API
+- [ ] Write unit tests for command parsing
+
+### YouTube Chat Integration (4-6 hours total) - DEFERRED
+- [ ] Research YouTube Live Chat API
+- [ ] Implement REST API polling for chat messages
+- [ ] Add command parsing and response system
+- [ ] Integrate with existing database/API
+- [ ] Write unit tests
+
+### Multi-Platform Abstraction (2-3 hours total) - OPTIONAL
+- [ ] Design ChatPlatform trait for platform abstraction
+- [ ] Refactor Twitch and YouTube implementations
+- [ ] Add platform-agnostic command handling

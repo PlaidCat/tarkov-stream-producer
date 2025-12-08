@@ -49,10 +49,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
       
       - name: Build release with debug symbols
         run: cargo build --release --verbose
@@ -67,14 +65,14 @@ jobs:
         with:
           name: windows-debug-executable
           path: tarkov_stream_producer-windows-${{ github.sha }}.exe
-          retention-days: 30
+          retention-days: 7
 
 Key points:
 - Triggers only on v* tags
 - Windows runner only
 - Builds with --release (uses profile.release config)
 - Renames with commit SHA
-- 30-day retention
+- 7-day retention
 
 ### Step 3: Testing
 

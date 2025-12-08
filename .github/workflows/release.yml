@@ -1,0 +1,32 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows-debug:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Release with debug symbols
+        run: cargo build --release --verbose
+
+      - name: Build Release executable with git SHA
+        shell: bash
+        run: |
+          cp target/release/tarkov_stream_producer.exe tarkov_stream_producer-windows-${{ github.sha }}.exe
+
+      - name: Upload Windows Debug Executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-debug-executable
+          path: tarkov_stream_producer-windows-${{ github.sha }}.exe
+          retention-days: 7

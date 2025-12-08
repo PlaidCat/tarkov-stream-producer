@@ -20,7 +20,10 @@ tarkov_stream_producer/
 ├── src/
 │   └── main.rs          # Entry point with tracing setup
 ├── .github/workflows/
-│   └── ci.yml           # CI pipeline for Linux/Windows
+│   ├── ci.yml           # CI pipeline for Linux/Windows
+│   └── release.yml      # Release builds for tagged versions
+├── docs/
+│   └── phase_1b_plan.md # Phase 1.b implementation plan
 ├── Cargo.toml           # Project manifest
 └── target/              # Build artifacts (gitignored)
 
@@ -80,6 +83,15 @@ CI/CD Pipeline
 - Code coverage measured using cargo-tarpaulin (set as dev-dependency, not installed
 system-wide yet per todo.md)
 - Coverage target: 50% for core logic
+
+Release Builds (Phase 1.b)
+
+- Windows debug executables produced on tagged releases (v* tags)
+- Artifacts named: `tarkov_stream_producer-windows-{git-sha}.exe`
+- Release builds use optimized code with debug symbols (`profile.release.debug = true`)
+- 30-day artifact retention on GitHub Actions
+- Enables cross-platform debugging on Arch Linux without Windows dev environment
+- See `docs/phase_1b_plan.md` for detailed implementation plan
 
 Planned Architecture (Future Phases)
 

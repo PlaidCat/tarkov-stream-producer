@@ -13,6 +13,15 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 - [x] **Database Integration:** Choose and integrate a Rust SQL library/ORM (`sqlx` with SQLite).
 - [x] **Database Integration:** Create basic connection and unit tests.
 
+### Phase 1.b: Windows Debug Executable Production (1-2 hours total)
+- [ ] Add `[profile.release]` with `debug = true` to Cargo.toml (0.25h)
+- [ ] Create `.github/workflows/release.yml` for tagged release builds (0.5h)
+- [ ] Test workflow by creating and pushing a version tag (0.25h)
+- [ ] Verify Windows executable artifact is produced and downloadable (0.25h)
+- [ ] Document completion in CLAUDE.md (0.25h)
+
+**Note:** See `docs/phase_1b_plan.md` for detailed implementation plan.
+
 ## Phase 2: Twitch Bot & Data Structure Planning
 
 ### Twitch Bot Integration (4-6 hours total)

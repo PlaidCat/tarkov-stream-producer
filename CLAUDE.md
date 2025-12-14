@@ -14,6 +14,40 @@ analysis using OCR/vision.
 integration, web API, OBS integration, and automated screen analysis are planned
 future phases.
 
+## Hardware Environment
+
+### Dev/Training System (Arch Linux)
+- **CPU**: AMD Ryzen 9 9950X 16-Core (32 threads)
+- **RAM**: 96GB DDR5
+- **GPU**: AMD Radeon RX 7900 XTX (24GB VRAM)
+- **ROCm**: 7.1.1 (for ML training in Phase 4)
+- **Storage**: 3.6TB NVMe + 3x 1TB drives
+- **OS**: Arch Linux
+- **Purpose**: Development, testing, model training (Phase 4)
+
+### Gaming PC (Windows - Dual Boot)
+- **Hardware**: Same as Dev System (9950X, 96GB, 7900 XTX)
+- **OS**: Windows (dual-boot with Arch Linux)
+- **Purpose**: Running Escape from Tarkov
+- **Restrictions**: Anticheat software prevents running detection services alongside game
+- **Note**: Game footage captured via Elgato on separate Streaming PC
+
+### Streaming/Production PC (Windows 11)
+- **CPU**: AMD Ryzen 9 5900X (24 threads)
+- **RAM**: 32GB DDR4
+- **GPU**: NVIDIA GeForce RTX 5070 (16GB VRAM)
+- **Capture**: Elgato 4K X (captures Gaming PC output)
+- **Storage**: NVMe SSD
+- **OS**: Windows 11
+- **Purpose**: OBS streaming, video detection inference (Phase 4)
+- **Software**: OBS Studio, detection service (Python), Rust app
+
+**Architecture Notes:**
+- Gaming PC runs game in isolation (anticheat compliance)
+- Elgato 4K X captures HDMI output from Gaming PC
+- Streaming PC receives clean Elgato feed for detection + adds overlays for stream
+- Model training on Dev System (AMD/ROCm), inference on Streaming PC (NVIDIA/TensorRT)
+
 ## Project Structure
 
 tarkov_stream_producer/

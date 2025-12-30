@@ -36,21 +36,15 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 - [x] Design Rust data structures (enums + structs for 4 tables)
 - [x] Design analytics queries (session comparisons, time breakdowns)
 
-### Phase 2a (Core): Implementation (2.5-3.5 hours total)
-- [ ] Create `migrations/20241224000000_initial_schema.sql` with 4-table schema (0.25h)
-- [ ] Create `src/models.rs` with all structs and enums (0.5h)
-  - StreamSession, Raid, RaidStateTransition, Kill
-  - CharacterType, GameMode, EnemyType, SessionType enums
-- [ ] Update `src/db.rs` to use `sqlx::migrate!()` instead of inline schema (0.25h)
-- [ ] Implement CRUD for StreamSession (0.5h)
-  - `create_session()`, `end_session()`, `get_current_session()`
-- [ ] Implement CRUD for Raid (0.75h)
-  - `create_raid()`, `finalize_raid()`, `get_active_raid()`
-- [ ] Implement CRUD for RaidStateTransition (0.5h)
-  - `record_transition()`, `get_transitions_for_raid()`
-- [ ] Implement CRUD for Kill (0.5h)
-  - `add_kill()`, `get_kills_for_raid()`
-- [ ] Write basic unit tests for all CRUD operations (1h)
+### Phase 2a (Core): Implementation (7-10 hours total, revised from 2.5-3.5h)
+- [x] Create `migrations/20251226000000_initial_schema.sql` with 4-table schema (0.25h est, ~1.3h actual)
+- [x] Create `src/models.rs` with all structs and enums (0.75-1h, revised from 0.5h)
+- [x] Update `src/db.rs` to use `sqlx::migrate!()` instead of inline schema (0.5h, revised from 0.25h)
+- [x] Implement CRUD for StreamSession (1-1.5h, revised from 0.5h)
+- [x] Implement CRUD for Raid (1-1.5h, revised from 0.75h)
+- [/] Implement CRUD for RaidStateTransition (0.75-1h, revised from 0.5h) - Create/Log implemented
+- [ ] Implement CRUD for Kill (0.5-0.75h)
+- [/] Write basic unit tests for all CRUD operations (1.5-2h, revised from 1h) - Session & Raid lifecycle tests added
 
 ### Phase 2a-Extended: Analytics & Time Tracking (1.5-2 hours total)
 - [ ] Implement `calculate_time_in_state()` function (0.75h)

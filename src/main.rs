@@ -1,4 +1,5 @@
 mod db;
+mod models;
 
 use tracing::{info};
 use tracing_subscriber::{self, EnvFilter};

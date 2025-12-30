@@ -92,7 +92,7 @@ CREATE TABLE kills (
     kill_id INTEGER PRIMARY KEY AUTOINCREMENT,
     raid_id INTEGER NOT NULL,
     killed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    enemy_type TEXT NOT NULL CHECK(enemy_type IN ('scav', 'pmc', 'boss', 'raider')),
+    enemy_type TEXT NOT NULL,  -- No CHECK constraint for extensibility (Phase 4 may discover new types)
     weapon_used TEXT,
     headshot BOOLEAN,
 
@@ -318,7 +318,7 @@ GROUP BY r.game_mode;
 ## Rust Data Structures
 
 ```rust_claude
-use chrono::NaiveDateTime;
+use time::PrimitiveDateTime;
 
 // ============================================================
 // Enums
@@ -340,20 +340,14 @@ pub enum GameMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
-pub enum EnemyType {
-    Scav,
-    PMC,
-    Boss,
-    Raider,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
-#[sqlx(type_name = "TEXT", rename_all = "lowercase")]
 pub enum SessionType {
     Stream,
     Practice,
     Casual,
 }
+
+// Note: EnemyType removed - using String for extensibility
+// Phase 4 OCR may discover new enemy types (cultist, rogue, bloodhound, etc.)
 
 // ============================================================
 // Structs
@@ -362,8 +356,8 @@ pub enum SessionType {
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct StreamSession {
     pub session_id: i64,
-    pub started_at: NaiveDateTime,
-    pub ended_at: Option<NaiveDateTime>,
+    pub started_at: PrimitiveDateTime,
+    pub ended_at: Option<PrimitiveDateTime>,
     pub session_type: Option<SessionType>,
     pub notes: Option<String>,
 }
@@ -372,8 +366,8 @@ pub struct StreamSession {
 pub struct Raid {
     pub raid_id: i64,
     pub session_id: Option<i64>,
-    pub started_at: NaiveDateTime,
-    pub ended_at: Option<NaiveDateTime>,
+    pub started_at: PrimitiveDateTime,
+    pub ended_at: Option<PrimitiveDateTime>,
     pub map_name: String,
     pub character_type: CharacterType,
     pub game_mode: GameMode,
@@ -387,15 +381,15 @@ pub struct RaidStateTransition {
     pub raid_id: i64,
     pub from_state: Option<String>,
     pub to_state: String,
-    pub transitioned_at: NaiveDateTime,
+    pub transitioned_at: PrimitiveDateTime,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct Kill {
     pub kill_id: i64,
     pub raid_id: i64,
-    pub killed_at: NaiveDateTime,
-    pub enemy_type: EnemyType,
+    pub killed_at: PrimitiveDateTime,
+    pub enemy_type: String,  // String for extensibility (no enum)
     pub weapon_used: Option<String>,
     pub headshot: Option<bool>,
 }

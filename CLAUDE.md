@@ -128,6 +128,17 @@ Release Builds (Phase 1.b) ✅
 - Workflow uses `dtolnay/rust-toolchain@stable` for consistency with CI
 - **Completed:** 2025-12-08
 
+Database Migrations (Phase 2a) ✅
+
+- Uses `sqlx` migrations with dedicated `migrations/` directory
+- Migration files named with timestamp: `YYYYMMDDHHMMSS_description.sql`
+- Applied automatically via `sqlx::migrate!()` macro at runtime
+- SQL syntax validation in CI pipeline (Linux only, skipped on Windows)
+- Validation command: `sqlite3 :memory: < migrations/*.sql`
+- **Design pattern:** Avoid CHECK constraints on extensible fields (e.g., `enemy_type`, `status`)
+  to allow discovery of new values without schema migrations
+- **Started:** 2025-12-26
+
 Planned Architecture (Future Phases)
 
 Phase 2: Core Data & API Foundation

@@ -22,19 +22,20 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Validate SQL Migration Syntax (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        for file in migrations/*.sql; do
-          echo "Validating $file"
-          sqlite3 :memory: < "${file}"
-        done
-      shell: bash
-
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: ${{ matrix.rust }}
+
+    - name: Install sqlx-cli
+      run: cargo install sqlx-cli --no-default-features --features sqlite --locked
+
+    - name: Setup Database
+      run: |
+        sqlx database create
+        sqlx migrate run
+      env:
+        DATABASE_URL: sqlite://ci.db
 
     - name: Cache Cargo Registry
       uses: actions/cache@v4
@@ -53,12 +54,18 @@ jobs:
       with:
         path: target
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      env:
+        DATABASE_URL: sqlite://ci.db
 
     - name: Build
       run: cargo build --verbose
+      env:
+        DATABASE_URL: sqlite://ci.db
 
     - name: Run Tests
       run: cargo test --verbose
+      env:
+        DATABASE_URL: sqlite://ci.db
 
   coverage:
     name: Code Coverage
@@ -71,11 +78,23 @@ jobs:
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
 
+    - name: Install sqlx-cli
+      run: cargo install sqlx-cli --no-default-features --features sqlite --locked
+
+    - name: Setup Database
+      run: |
+        sqlx database create
+        sqlx migrate run
+      env:
+        DATABASE_URL: sqlite://ci.db
+
     - name: Install cargo-tarpaulin
       run: cargo install cargo-tarpaulin --locked
 
     - name: Generate Coverage
       run: cargo tarpaulin --out Xml --output-dir ./coverage
+      env:
+        DATABASE_URL: sqlite://ci.db
 
     - name: Upload Coverage Reports
       uses: actions/upload-artifact@v4

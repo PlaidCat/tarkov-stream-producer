@@ -42,7 +42,7 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 - [x] Update `src/db.rs` to use `sqlx::migrate!()` instead of inline schema (0.5h, revised from 0.25h)
 - [x] Implement CRUD for StreamSession (1-1.5h, revised from 0.5h)
 - [x] Implement CRUD for Raid (1-1.5h, revised from 0.75h)
-- [/] Implement CRUD for RaidStateTransition (0.75-1h, revised from 0.5h) - Create/Log implemented
+- [x] Implement CRUD for RaidStateTransition (0.75-1h, revised from 0.5h) - Create/Log implemented
 - [ ] Implement CRUD for Kill (0.5-0.75h)
 - [/] Write basic unit tests for all CRUD operations (1.5-2h, revised from 1h) - Session & Raid lifecycle tests added
 

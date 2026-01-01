@@ -2,7 +2,7 @@ use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
 use sqlx::{Error, Transaction};
 use time::OffsetDateTime;
 
-use crate::models::{CharacterType, Raid, GameMode, SessionType, StreamSession};
+use crate::models::{CharacterType, Raid, GameMode, SessionType, StreamSession, RaidStateTransition};
 
 pub async fn create_pool(database_url: &str) -> Result<SqlitePool, Error> {
     SqlitePoolOptions::new()
@@ -138,7 +138,8 @@ pub async fn get_active_raid(pool: &SqlitePool) -> Result<Option<Raid>, Error> {
 pub async fn log_state_transition(
     pool: &SqlitePool,
     raid_id: i64,
-    to_state: &str, 
+    to_state: &str,
+    timestamp: Option<OffsetDateTime>,
 ) -> Result<(), Error> {
     let mut tx: Transaction<'_, sqlx::Sqlite> = pool.begin().await?;
 
@@ -149,14 +150,17 @@ pub async fn log_state_transition(
     .fetch_one(&mut *tx)
     .await?;
 
+    let ts = timestamp.unwrap_or_else(|| OffsetDateTime::now_utc());
+
     sqlx::query!(
         r#"
-        INSERT INTO raid_state_transitions (raid_id, from_state, to_state)
-        VALUES (?, ?, ?)
+        INSERT INTO raid_state_transitions (raid_id, from_state, to_state, transitioned_at)
+        VALUES (?, ?, ?, ?)
         "#,
         raid_id,
         from_state,
-        to_state
+        to_state,
+        ts
     )
     .execute(&mut *tx)
     .await?;
@@ -173,8 +177,33 @@ pub async fn log_state_transition(
     Ok(())
 }
 
+pub async fn get_raid_transitions(
+    pool: &SqlitePool, 
+    raid_id: i64
+) -> Result<Vec<RaidStateTransition>, Error> {
+    sqlx::query_as!(
+        RaidStateTransition,
+        r#"
+        SELECT
+            transition_id as "transition_id!",
+            raid_id as "raid_id!",
+            from_state,
+            to_state as "to_state!",
+            transitioned_at
+        FROM raid_state_transitions
+        WHERE raid_id = ?
+        ORDER BY transitioned_at ASC
+        "#,
+        raid_id
+    )
+    .fetch_all(pool)
+    .await
+}
 #[cfg(test)]
 mod tests {
+    use tokio::time::sleep;
+    use std::time::Duration;
+
     use super::*;
 
     async fn setup_test_db() -> Result<SqlitePool, Error> {
@@ -202,8 +231,19 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_get_transitions_for_nonexistent_raid() -> Result<(), Error> {
+        let pool = setup_test_db().await?;
+
+        let transition = get_raid_transitions(&pool, 999).await?;
+        assert_eq!(transition.len(), 0); //should return empty vec, not error
+
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn test_session_lifecycle() -> Result<(), Error> {
         let pool = setup_test_db().await.expect("Failed to setup_test_db");
+
 
         //start Session
         let session_id = create_session(&pool, SessionType::Stream, Some("Test Stream".into())).await?;
@@ -218,12 +258,27 @@ mod tests {
         let raid_id = create_raid(&pool, session_id, "customs", CharacterType::PMC, GameMode::PVE).await?;
         assert_eq!(raid_id, 1);
 
-        let active_raid = get_active_raid(&pool).await?.expect("Should have active raild");
+        let active_raid = get_active_raid(&pool).await?.expect("Should have active raid");
         assert_eq!(active_raid.map_name, "customs");
         assert_eq!(active_raid.current_state, "stash_management");
 
-        log_state_transition(&pool, raid_id, "queue").await.expect("Should have done a state transition");
+        let mut time = OffsetDateTime::now_utc();
 
+        // Transitions
+        log_state_transition(&pool, raid_id, "queue", Some(time)).await.expect("Should have done a state transition");
+        time = time + time::Duration::seconds(10);
+        log_state_transition(&pool, raid_id, "in_raid", Some(time)).await.expect("Should have done another state transition");
+
+        let transitions = get_raid_transitions(&pool, raid_id).await?;
+        assert_eq!(transitions.len(), 2);
+        assert_eq!(transitions[0].to_state, "queue");
+        assert_eq!(transitions[1].from_state, Some("queue".into()));
+        assert_eq!(transitions[1].to_state, "in_raid");
+
+        // Validate that we waited 10seconds in queue
+        let time_diff = transitions[1].transitioned_at - transitions[0].transitioned_at;
+        assert_eq!(time_diff, time::Duration::seconds(10), 
+            "Expected 10 seconds between transitions");
 
         // End Raid
         end_raid(&pool, raid_id, None, None).await.expect("Failed to end_raid()");
@@ -234,6 +289,7 @@ mod tests {
         let active = get_active_session(&pool).await?;
         assert!(active.is_none());
 
+        pool.close().await;
         Ok(())
     }
 }

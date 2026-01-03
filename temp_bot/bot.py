@@ -1,22 +1,66 @@
+import os
+import sys
 from twitchio.ext import commands
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # CONFIGURATION
-# TODO: Replace these with your actual details
-# Get your token from: https://twitchtokengenerator.com/ (Select 'Bot Chat Token')
-TOKEN = 'oauth:YOUR_ACCESS_TOKEN_HERE' # Keep the 'oauth:' prefix
-CHANNEL = 'YOUR_CHANNEL_NAME'
+TOKEN = os.getenv('TWITCH_TOKEN')
+CHANNEL = os.getenv('TWITCH_CHANNEL')
+CLIENT_ID = os.getenv('TWITCH_CLIENT_ID')
+CLIENT_SECRET = os.getenv('TWITCH_CLIENT_SECRET')
+
+if not TOKEN or not CHANNEL or 'YOUR_' in TOKEN or 'YOUR_' in CHANNEL:
+    print("Error: Environment variables not set properly.")
+    print("Please create a .env file based on .env.example and set TWITCH_TOKEN and TWITCH_CHANNEL.")
+    sys.exit(1)
 
 class Bot(commands.Bot):
     def __init__(self):
-        super().__init__(token=TOKEN, prefix='!', initial_channels=[CHANNEL])
+        # Prepare arguments for Bot initialization
+        args = {
+            'token': TOKEN,
+            'prefix': '!',
+            'initial_channels': [CHANNEL]
+        }
+        # Add optional client credentials if provided
+        if CLIENT_ID:
+            args['client_id'] = CLIENT_ID
+        if CLIENT_SECRET:
+            args['client_secret'] = CLIENT_SECRET
+            
+        super().__init__(**args)
 
     async def event_ready(self):
         print(f'Logged in as | {self.nick}')
         print(f'Connected to channel: {CHANNEL}')
 
+    def _read_response(self, filename):
+        """Helper to read text from a file in the same directory."""
+        try:
+            # Construct absolute path to ensure we find the file
+            base_path = os.path.dirname(os.path.abspath(__file__))
+            file_path = os.path.join(base_path, filename)
+            
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return f.read().strip()
+        except FileNotFoundError:
+            return f"Error: {filename} not found."
+        except Exception as e:
+            print(f"Error reading {filename}: {e}")
+            return "Error reading command file."
+
     @commands.command()
     async def rules(self, ctx: commands.Context):
-        await ctx.send("Be nice, no spam, and have fun!")
+        response = self._read_response('rules.txt')
+        await ctx.send(response)
+
+    @commands.command()
+    async def shopping(self, ctx: commands.Context):
+        response = self._read_response('shopping.txt')
+        await ctx.send(response)
 
     @commands.command()
     async def discord(self, ctx: commands.Context):
@@ -24,7 +68,7 @@ class Bot(commands.Bot):
 
     @commands.command()
     async def commands(self, ctx: commands.Context):
-        await ctx.send("Available commands: !rules, !discord")
+        await ctx.send("Available commands: !rules, !discord, !shopping")
 
 if __name__ == "__main__":
     print("Starting bot...")

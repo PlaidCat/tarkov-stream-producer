@@ -9,16 +9,24 @@ This is a lightweight Python script to handle basic Twitch chat commands like !r
 
 ## Configuration
 
-1.  Open `bot.py` in a text editor (Notepad, VS Code, etc.).
-2.  Get your **Access Token**:
+1.  Create a new file named `.env` in this folder (or copy `.env.example` and rename it to `.env`).
+2.  Open `.env` in a text editor.
+3.  Get your **Access Token**:
     *   Go to [twitchtokengenerator.com](https://twitchtokengenerator.com/).
     *   Click "Bot Chat Token".
     *   Authorize with the Twitch account you want the bot to use.
     *   Copy the "Access Token" (e.g., `oauth:12345abcdef...`).
-3.  Update `bot.py`:
-    *   Replace `'oauth:YOUR_ACCESS_TOKEN_HERE'` with your actual token.
-    *   Replace `'YOUR_CHANNEL_NAME'` with your Twitch channel name (lowercase).
+4.  Update `.env` with your details:
+    *   Set `TWITCH_TOKEN` to your access token.
+    *   Set `TWITCH_CHANNEL` to your Twitch channel name (lowercase).
     *   Save the file.
+
+## Customizing Commands
+
+The bot now reads responses from text files. You can edit these files while the bot is running (changes apply immediately):
+
+*   **!rules**: Edits `rules.txt`.
+*   **!shopping**: Edits `shopping.txt`.
 
 ## How to Run
 

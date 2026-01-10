@@ -1,5 +1,5 @@
 use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
-use sqlx::{Error, Transaction};
+use sqlx::{pool, Error, Transaction};
 use time::OffsetDateTime;
 
 use crate::models::{CharacterType, Raid, GameMode, SessionType, StreamSession, RaidStateTransition};
@@ -199,6 +199,61 @@ pub async fn get_raid_transitions(
     .fetch_all(pool)
     .await
 }
+
+// ================================================================================================
+// Kill Operations
+// ================================================================================================
+pub async fn add_kill(
+    pool: &SqlitePool,
+    raid_id: i64,
+    enemy_type: &str,
+    weapon_used: Option<String>,
+    headshot: Option<bool>,
+    killed_at: Option<OffsetDateTime>,
+) -> Result<i64, Error> {
+    let ts = killed_at.unwrap_or_else(|| OffsetDateTime::now_utc());
+
+    let id = sqlx::query!(
+        r#"
+        INSERT INTO kills (raid_id, enemy_type, weapon_used, headshot, killed_at)
+        VALUES (?, ?, ?, ?, ?)
+        RETURNING kill_id as "kill_id!"
+        "#,
+        raid_id,
+        enemy_type,
+        weapon_used,
+        headshot,
+        ts
+    )
+    .fetch_one(pool)
+    .await?
+    .kill_id;
+
+    Ok(id)
+}
+
+pub async fn get_kills_for_raid(pool: &SqlitePool, raid_id: i64) -> Result<Vec<crate::models::Kill>, Error> {
+    sqlx::query_as!(
+        crate::models::Kill,
+        r#"
+        SELECT
+            kill_id as "kill_id!",
+            raid_id as "raid_id!",
+            killed_at as "killed_at!",
+            enemy_type as "enemy_type!",
+            weapon_used,
+            headshot as "headshot: bool"
+        FROM kills
+        WHERE raid_id = ?
+        ORDER BY killed_at ASC
+        "#,
+        raid_id
+    )
+    .fetch_all(pool)
+    .await
+}
+
+
 #[cfg(test)]
 mod tests {
     use tokio::time::sleep;
@@ -279,6 +334,42 @@ mod tests {
         let time_diff = transitions[1].transitioned_at - transitions[0].transitioned_at;
         assert_eq!(time_diff, time::Duration::seconds(10), 
             "Expected 10 seconds between transitions");
+
+        // Log Kills
+        // Kill 1: +300s
+        let kill_time = time + time::Duration::seconds(300); 
+        let kill_id_1 = add_kill(
+            &pool,
+            raid_id,
+            "scav",
+            Some("M4A1".to_string()),
+            Some(true),
+            Some(kill_time)
+        ).await?;
+        assert!(kill_id_1 > 0);
+
+        // Kill 2: +150s (Earlier!)
+        let kill_id_2 = add_kill(
+            &pool,
+            raid_id,
+            "pmc",
+            Some("HK-416".to_string()),
+            Some(false),
+            Some(time + time::Duration::seconds(150))
+        ).await?;
+        assert!(kill_id_2 > 0);
+
+        // Verify kills - Sorted by time ASC
+        let kills = get_kills_for_raid(&pool, raid_id).await?;
+        assert_eq!(kills.len(), 2);
+        
+        // First event (time + 150s) -> PMC
+        assert_eq!(kills[0].enemy_type, "pmc");
+        assert_eq!(kills[0].headshot, Some(false));
+
+        // Second event (time + 300s) -> Scav
+        assert_eq!(kills[1].enemy_type, "scav");
+        assert_eq!(kills[1].headshot, Some(true));
 
         // End Raid
         end_raid(&pool, raid_id, None, None).await.expect("Failed to end_raid()");

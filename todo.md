@@ -43,8 +43,8 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 - [x] Implement CRUD for StreamSession (1-1.5h, revised from 0.5h)
 - [x] Implement CRUD for Raid (1-1.5h, revised from 0.75h)
 - [x] Implement CRUD for RaidStateTransition (0.75-1h, revised from 0.5h) - Create/Log implemented
-- [ ] Implement CRUD for Kill (0.5-0.75h)
-- [/] Write basic unit tests for all CRUD operations (1.5-2h, revised from 1h) - Session & Raid lifecycle tests added
+- [x] Implement CRUD for Kill (0.5-0.75h)
+- [x] Write basic unit tests for all CRUD operations (1.5-2h, revised from 1h) - Session & Raid lifecycle tests added
 
 ### Phase 2a-Extended: Analytics & Time Tracking (1.5-2 hours total)
 - [ ] Implement `calculate_time_in_state()` function (0.75h)
@@ -58,26 +58,93 @@ This document outlines the development plan for the Tarkov Stream Producer appli
   - Test time calculations
   - Test edge cases (reconnects, cancels)
 
-### Phase 2b: Web API for Manual Control (5-7 hours total)
-**Note:** Updated to support 4-table schema with sessions and state transitions.
+### Phase 2b: REST API with Web UI (14-18 hours total)
+**Note:** Axum framework with Askama templates for manual control and web-based kill entry.
+**See:** `docs/phase_2b_rest_api_plan.md` for complete implementation details.
 
-- [ ] Choose web framework (actix-web vs axum) and add dependency (0.5h)
-- [ ] Set up basic HTTP server with health check endpoint (1h)
-- [ ] Implement session endpoints (1h)
-  - `POST /session/start` - Create new streaming session
-  - `POST /session/end` - End current session
-  - `GET /session/current` - Get active session info
-- [ ] Implement raid lifecycle endpoints (2h)
-  - `POST /raid/start` - Create raid (with session_id)
-  - `POST /raid/transition` - Record state change
-  - `POST /raid/kill` - Add kill to raid
-  - `POST /raid/end` - Finalize raid with outcome
-- [ ] Implement stats query endpoints (1h)
-  - `GET /stats/session/:id` - Session summary
-  - `GET /stats/current` - Active session stats
-  - `GET /stats/all-time` - Historical stats
-- [ ] Add request validation and error handling (1h)
-- [ ] Write integration tests for all endpoints (1.5h)
+#### Phase 2b.1: Core Infrastructure (2-3 hours)
+- [ ] Add dependencies to Cargo.toml (0.25h)
+  - axum, tower, tower-http, serde, serde_json, askama, askama_axum, validator, http
+- [ ] Create module structure: src/api/, src/web/ (0.25h)
+- [ ] Implement src/api/state.rs - AppState wrapper for SqlitePool (0.5h)
+- [ ] Implement src/api/error.rs - AppError with HTTP status mapping (1h)
+  - DatabaseError (500), NotFound (404), Conflict (409), ValidationError (422), BadRequest (400)
+- [ ] Update src/main.rs - Axum server setup, router mounting (1h)
+- [ ] Implement GET /health endpoint (0.25h)
+- [ ] Test: `cargo run`, curl health check (0.25h)
+
+#### Phase 2b.2: Session Endpoints (1.5 hours)
+- [ ] Define session DTOs in src/api/dto.rs (0.25h)
+  - CreateSessionRequest, SessionResponse
+- [ ] Implement src/api/handlers/session.rs (1h)
+  - POST /api/session - create session
+  - GET /api/session/current - get active session
+  - POST /api/session/end - end session
+- [ ] Wire routes in src/api/routes.rs (0.25h)
+- [ ] Test with curl: full session lifecycle (0.25h)
+
+#### Phase 2b.3: Raid Endpoints (2.5 hours)
+- [ ] Define raid DTOs in src/api/dto.rs (0.5h)
+  - CreateRaidRequest, StateTransitionRequest, EndRaidRequest, RaidResponse
+- [ ] Implement src/api/handlers/raid.rs (1.5h)
+  - POST /api/raid - start raid
+  - GET /api/raid/current - get active raid
+  - POST /api/raid/transition - change state
+  - POST /api/raid/end - end raid
+- [ ] Wire routes in src/api/routes.rs (0.25h)
+- [ ] Test: start raid → transitions → end raid flow (0.5h)
+
+#### Phase 2b.4: Kill Endpoints (1.5 hours)
+- [ ] Define kill DTOs in src/api/dto.rs (0.25h)
+  - AddKillRequest, BatchKillsRequest, KillResponse
+- [ ] Implement src/api/handlers/kill.rs (1h)
+  - POST /api/raid/:raid_id/kills - add single kill
+  - POST /api/raid/current/kills/batch - add multiple kills
+  - GET /api/raid/:raid_id/kills - list kills for raid
+- [ ] Wire routes with path parameters (0.25h)
+- [ ] Test: single kill, batch kills, retrieve kills (0.25h)
+
+#### Phase 2b.5: Stats Endpoints (1.5 hours)
+- [ ] Add aggregation queries to src/db.rs (0.5h)
+  - Session stats (total raids, survival rate, K/D)
+  - Raid details with state durations
+- [ ] Define stats DTOs in src/api/dto.rs (0.25h)
+  - SessionStatsResponse, RaidStatsResponse
+- [ ] Implement src/api/handlers/stats.rs (0.5h)
+  - GET /api/stats/session/current - current session aggregations
+  - GET /api/stats/raid/:raid_id - individual raid details
+- [ ] Test: verify calculations match expected values (0.25h)
+
+#### Phase 2b.6: Web UI (3-4 hours)
+- [ ] Set up src/web/templates/ directory, configure Askama (0.25h)
+- [ ] Create layout.html base template with navigation (0.5h)
+- [ ] Implement dashboard (index.html) (1h)
+  - Show active session status OR session start form
+  - Show active raid details OR raid start link
+  - Quick action buttons for state transitions
+- [ ] Implement raid start form (raid_start.html) (0.5h)
+  - Map selection, character type, game mode
+- [ ] Implement kill entry form (kill_form.html) (1h)
+  - Dynamic batch entry with JavaScript
+  - Enemy type, weapon, headshot fields
+- [ ] Add basic CSS styling for usability (0.5h)
+- [ ] Test: manual workflow in browser (0.5h)
+
+#### Phase 2b.7: Integration Testing (1-2 hours)
+- [ ] Write integration tests for endpoint behavior (1h)
+  - Test full raid lifecycle with state transitions
+  - Test batch kill creation
+  - Test stats calculations
+- [ ] Test error scenarios (0.5h)
+  - No active session, duplicate raid, invalid raid_id
+- [ ] Run cargo tarpaulin, verify 50% coverage target (0.25h)
+
+#### Phase 2b.8: Documentation (1 hour)
+- [ ] Update CLAUDE.md with API usage examples (0.25h)
+- [ ] Document Stream Deck button configuration (0.25h)
+  - Example HTTP request payloads for common operations
+- [ ] Add curl examples for common operations (0.25h)
+- [ ] User guide for manual kill entry workflow (0.25h)
 
 ### Phase 2c: Stream Deck Integration (3-4 hours total)
 - [ ] Research Stream Deck HTTP request capabilities (1h)

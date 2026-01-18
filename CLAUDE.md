@@ -139,6 +139,16 @@ Database Migrations (Phase 2a) ✅
   to allow discovery of new values without schema migrations
 - **Started:** 2025-12-26
 
+Session Time Tracking (Phase 2a-Extended)
+
+- **Session overhead time**: Gap between session start and first raid start
+- Tracks "stream setup", "just chatting", or menu time before first raid begins
+- Implemented in `src/stats.rs` with `calculate_time_before_first_raid()`
+- No schema changes needed - calculated from `session.started_at` and first `raid.started_at`
+- Database helper functions in `src/db.rs`: `get_session_by_id()`, `get_first_raid_for_session()`
+- Useful metric: "How much time do I waste before actually starting raids?"
+- Aggregates across all sessions for historical analysis
+
 Planned Architecture (Future Phases)
 
 Phase 2: Core Data & API Foundation

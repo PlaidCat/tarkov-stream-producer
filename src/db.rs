@@ -69,6 +69,39 @@ pub async fn get_active_session(pool: &SqlitePool) -> Result<Option<StreamSessio
     ).fetch_optional(pool).await
 }
 
+pub async fn get_session_by_id(pool: &SqlitePool, session_id: i64) -> Result<Option<StreamSession>, Error> {
+    sqlx::query_as!(
+        StreamSession,
+        r#"
+        SELECT
+            session_id as "session_id!",
+            started_at,
+            ended_at,
+            session_type AS "session_type: SessionType",
+            notes
+        FROM stream_sessions
+        WHERE session_id = ?
+        "#, 
+        session_id
+    ).fetch_optional(pool).await
+}
+
+pub async fn get_all_sessions(pool: &SqlitePool) -> Result<Vec<StreamSession>, Error> {
+    sqlx::query_as!(
+        StreamSession,
+        r#"
+        SELECT
+            session_id as "session_id!",
+            started_at,
+            ended_at,
+            session_type AS "session_type: SessionType",
+            notes
+        FROM stream_sessions
+        ORDER BY started_at DESC
+        "#,
+    ).fetch_all(pool).await
+}
+
 // ================================================================================================
 // Raid Operations
 // ================================================================================================
@@ -129,6 +162,29 @@ pub async fn get_active_raid(pool: &SqlitePool) -> Result<Option<Raid>, Error> {
         ORDER BY started_at DESC
         LIMIT 1
         "#
+    ).fetch_optional(pool).await
+}
+
+pub async fn get_first_raid_for_session(pool: &SqlitePool, session_id: i64) -> Result<Option<Raid>, Error> {
+    sqlx::query_as!(
+        Raid,
+        r#"
+        SELECT
+            raid_id as "raid_id!",
+            session_id as "session_id!",
+            started_at,
+            ended_at,
+            map_name as "map_name!",
+            character_type AS "character_type: CharacterType",
+            game_mode as "game_mode: GameMode",
+            current_state as "current_state!",
+            extract_location
+        FROM raids
+        WHERE session_id = ?
+        ORDER BY started_at ASC
+        LIMIT 1
+        "#,
+        session_id
     ).fetch_optional(pool).await
 }
 
@@ -255,13 +311,13 @@ pub async fn get_kills_for_raid(pool: &SqlitePool, raid_id: i64) -> Result<Vec<c
 
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use tokio::time::sleep;
     use std::time::Duration;
 
     use super::*;
 
-    async fn setup_test_db() -> Result<SqlitePool, Error> {
+    pub async fn setup_test_db() -> Result<SqlitePool, Error> {
         let pool = create_pool("sqlite::memory:")
             .await
             .expect("Failed to create pool");
@@ -293,6 +349,46 @@ mod tests {
         assert_eq!(transition.len(), 0); //should return empty vec, not error
 
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_get_session_by_id() -> Result<(), Error> {
+        let pool = setup_test_db().await?;
+
+        let session_id = create_session(&pool, SessionType::Stream, Some("Test Stream".into())).await?;
+
+        let full_session = get_session_by_id(&pool, session_id).await?.expect("Should have gotted a StreamSession");
+
+        assert_eq!(full_session.session_id, session_id);
+        
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_get_all_sessions() -> Result<(), Error> {
+        let pool = setup_test_db().await.expect("Failed to setup_test_db");
+
+        let session_id = create_session(&pool, SessionType::Stream, Some("Test Stream".into())).await?;
+        assert_eq!(session_id, 1);
+        let _ = sleep(Duration::from_millis(100));
+
+        end_session(&pool, session_id).await.expect("Failed to End Session");
+
+        let session_id_2 = create_session(&pool, SessionType::Stream, Some("Test Stream".into())).await?;
+        assert_eq!(session_id_2, 2);
+        
+        let all_sessions = get_all_sessions(&pool).await?;
+        
+        assert_eq!(all_sessions.len(), 2);
+        let mut i: i64 = all_sessions.len() as i64;
+        for session in all_sessions.iter() {
+            assert_eq!(session.session_id, i);
+            i = i - 1;
+        }
+
+        Ok(())
+
     }
 
     #[tokio::test]

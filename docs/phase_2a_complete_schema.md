@@ -315,6 +315,53 @@ WHERE r.session_id = 42
 GROUP BY r.game_mode;
 ```
 
+### Query 6: Session Overhead Time (Pre-Raid Setup)
+
+```sql_claude
+-- Calculate time between session start and first raid start
+-- Tracks "stream setup", "just chatting", or menu time before first raid
+-- Useful for identifying how much time is spent before actually playing
+
+-- Single session overhead
+SELECT
+    s.session_id,
+    s.started_at as session_start,
+    r.started_at as first_raid_start,
+    CAST((julianday(r.started_at) - julianday(s.started_at)) * 86400 AS INTEGER) as overhead_seconds,
+    ROUND((julianday(r.started_at) - julianday(s.started_at)) * 1440, 1) as overhead_minutes
+FROM stream_sessions s
+LEFT JOIN raids r ON r.session_id = s.session_id
+WHERE s.session_id = 42
+  AND r.raid_id = (
+      SELECT MIN(raid_id)
+      FROM raids
+      WHERE session_id = s.session_id
+  );
+
+-- All-time average overhead
+SELECT
+    COUNT(DISTINCT s.session_id) as total_sessions,
+    ROUND(AVG(CAST((julianday(first_raid.started_at) - julianday(s.started_at)) * 1440 AS FLOAT)), 1) as avg_overhead_minutes,
+    MIN(CAST((julianday(first_raid.started_at) - julianday(s.started_at)) * 1440 AS INTEGER)) as min_overhead_minutes,
+    MAX(CAST((julianday(first_raid.started_at) - julianday(s.started_at)) * 1440 AS INTEGER)) as max_overhead_minutes
+FROM stream_sessions s
+INNER JOIN (
+    SELECT session_id, MIN(raid_id) as first_raid_id
+    FROM raids
+    GROUP BY session_id
+) first_raid_lookup ON s.session_id = first_raid_lookup.session_id
+INNER JOIN raids first_raid ON first_raid.raid_id = first_raid_lookup.first_raid_id;
+```
+
+**Example Result:**
+```
+total_sessions | avg_overhead_minutes | min_overhead_minutes | max_overhead_minutes
+---------------|---------------------|---------------------|---------------------
+25             | 18.5                | 3                   | 45
+```
+
+**Interpretation:** On average, 18.5 minutes pass between starting a stream session and beginning the first raid. This tracks "dicking around" time in menus, stream setup, or just chatting.
+
 ## Rust Data Structures
 
 ```rust_claude

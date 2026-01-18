@@ -39,15 +39,21 @@ This file documents the specific operational rules and role for Gemini in the **
 - **Time Estimation:** Revised Phase 2a estimates upward (~7-10h total). Rust's type system (enums, `FromRow`) and async DB testing require more boilerplate than initially anticipated.
 
 ## Current Context
-- **Phase:** Phase 2a (Core Implementation).
-- **Immediate Goal:** Fix type mismatches (`PrimitiveDateTime` vs `OffsetDateTime`) and complete CRUD operations in `src/db.rs`.
-- **Project State:** `src/models.rs` needs update to `OffsetDateTime`. `src/db.rs` has partial session CRUD.
+- **Phase:** Phase 2a-Extended (Analytics & Time Tracking).
+- **Immediate Goal:** Implement `calculate_time_in_state()` and session comparison queries.
+- **Project State:** Core CRUD operations for Sessions, Raids, Transitions, and Kills are complete and tested. Focus is now on deriving insights from the tracked data.
 
 ## Technical Learnings
 - **SQLx Compile-Time Checks:** `sqlx::query!` macros require a live database connection (via `DATABASE_URL`) at compile time to verify SQL syntax and types.
 - **SQLx Type Mapping:** SQLite `TIMESTAMP` maps to `time::OffsetDateTime` by default in SQLx. Using `PrimitiveDateTime` in structs causes `From<OffsetDateTime>` trait bound errors.
 - **Nullable IDs:** When using `RETURNING session_id` or querying IDs that SQLx thinks might be nullable (e.g. from autoincrement), use `column AS "column!"` syntax to force non-nullable types in Rust.
 - **Unit Testing:** `sqlx` tests requiring async must return `Result<(), Error>` and end with `Ok(())`. `assert!` expects booleans; use `assert_eq!` for value comparison.
+
+## Analytics Architecture (Phase 2a-Extended)
+- **Separation of Concerns:** `src/stats.rs` contains **pure logic** (no DB calls). `src/db.rs` handles data fetching. This ensures analytics logic is unit-testable.
+- **Intervals vs Events:** We use "Virtual Transitions" in `stats.rs` to account for the time gap between `raid.started_at` and the first recorded transition.
+- **Implicit Menu Time:** "Menu/Stash Time" is calculated as `Session Duration - Sum(Raid Durations)`. It is not explicitly tracked in the DB.
+- **Time to First Raid:** A specific metric tracking the delay between `session.started_at` and the first `raid.started_at`, isolating "startup dicking around" time.
 
 ---
 *This document serves as a persistent reminder of my constraints and objectives.*

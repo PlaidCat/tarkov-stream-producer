@@ -46,7 +46,23 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 - [x] Implement CRUD for Kill (0.5-0.75h)
 - [x] Write basic unit tests for all CRUD operations (1.5-2h, revised from 1h) - Session & Raid lifecycle tests added
 
-### Phase 2a-Extended: Analytics & Time Tracking (1.5-2 hours total)
+### Phase 2a-Extended: Analytics & Time Tracking (2-3 hours total, revised)
+- [x] Add database helper functions to src/db.rs (0.5h) - COMPLETED 2026-01-18
+  - get_session_by_id()
+  - get_all_sessions()
+  - get_first_raid_for_session()
+- [x] Implement `calculate_time_before_first_raid()` function (0.5h) - COMPLETED 2026-01-18
+  - Calculate average "dead time" before first raid across all sessions
+  - Track most recent session separately
+  - Fixed compilation errors in stats.rs (removed unused HashMap import, variables)
+- [x] Write test for `calculate_time_before_first_raid()` (0.5h) - COMPLETED 2026-01-18
+  - Used optional timestamp parameters (follows existing pattern)
+  - 3 sessions with 10min, 30min, 5min delays
+  - Verified average (15min) and session count calculations
+- [x] Code cleanup and consistency fixes (0.3h) - COMPLETED 2026-01-18
+  - Fixed error handling: replaced .expect() with ? in test functions
+  - Fixed typos in error messages
+  - Removed unused imports and variables
 - [ ] Implement `calculate_time_in_state()` function (0.75h)
   - Query to sum time between state transitions
   - Handle multiple visits to same state

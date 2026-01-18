@@ -147,17 +147,31 @@ Database Migrations (Phase 2a) ✅
   to allow discovery of new values without schema migrations
 - **Started:** 2025-12-26
 
-Session Time Tracking (Phase 2a-Extended) - IN PROGRESS
+Session Time Tracking (Phase 2a-Extended) - PARTIALLY COMPLETE
 
 - **Session overhead time**: Gap between session start and first raid start
 - Tracks "stream setup", "just chatting", or menu time before first raid begins
-- Implementation in `src/stats.rs` with `calculate_time_before_first_raid()` (in progress)
+- Implementation in `src/stats.rs` with `calculate_time_before_first_raid()` ✅
 - No schema changes needed - calculated from `session.started_at` and first `raid.started_at`
-- **Pending:** Database helper functions in `src/db.rs`: `get_session_by_id()`, `get_all_sessions()`, `get_first_raid_for_session()`
-- **Pending:** Complete implementation and test with controlled timestamps
+- **Completed (2026-01-18):** Database helper functions in `src/db.rs`:
+  - `get_session_by_id()` - fetch single session by ID
+  - `get_all_sessions()` - fetch all sessions ordered by started_at DESC
+  - `get_first_raid_for_session()` - fetch first raid for a session
+- **Completed (2026-01-18):** `calculate_time_before_first_raid()` implementation
+  - Calculates average delay across all sessions
+  - Tracks total session count
+  - Tracks most recent session delay separately
+  - Full test coverage with controlled timestamps
+- **Remaining:** `calculate_time_in_state()` implementation and session comparison queries
 - Useful metric: "How much time do I waste before actually starting raids?"
 - Aggregates across all sessions for historical analysis
-- **Status:** Planning complete, implementation started 2026-01-18
+
+**Testing Pattern Learned:**
+- Use optional timestamp parameters (`Option<OffsetDateTime>`) for CRUD functions
+- Follows existing pattern from `log_state_transition()`, `add_kill()`, `end_raid()`
+- Production code passes `None` to use real timestamps
+- Tests pass `Some(timestamp)` for deterministic, fast tests
+- No need for raw SQL in tests - clean API for both production and testing
 
 Planned Architecture (Future Phases)
 
@@ -184,6 +198,27 @@ Phase 5: Chat Bot Integration (Deferred)
 - Twitch bot for chat commands (!stats, !kd) - deferred due to unmaintained libraries
 - YouTube Live Chat integration - requires different architecture (REST API vs IRC)
 - Multi-platform chat abstraction when both platforms are implemented
+
+## Development Notes & Learnings
+
+### Rust Error Handling Best Practices (2026-01-18)
+- **Production code**: Always use `?` operator to propagate errors up the call stack
+- **Test functions**: Use `?` in functions that return `Result<(), Error>` for better error messages
+  - `.expect()` can be used for setup functions when you want custom panic messages
+  - But `?` generally provides better debugging information
+- **Never mix**: Don't use `.expect()` in functions that return `Result` - be consistent
+- **Unused results**: Prefix variables with `_` (e.g., `_states`) to indicate intentionally unused
+
+### Testing with Timestamps
+- Add `Option<OffsetDateTime>` parameters to CRUD functions for testability
+- Use `timestamp.unwrap_or_else(|| OffsetDateTime::now_utc())` pattern
+- Production code passes `None`, tests pass `Some(timestamp)` for deterministic behavior
+- Follows consistent pattern across: `create_session()`, `create_raid()`, `log_state_transition()`, `add_kill()`, `end_raid()`
+
+### Code Review Process
+- User prefers to see exact line numbers and issues before corrections
+- Always read the actual file to verify line numbers (git diff may not reflect current state)
+- Get explicit confirmation before making corrections
 
 ## User Preferences
 

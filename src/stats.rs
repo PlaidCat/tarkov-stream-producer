@@ -2,8 +2,6 @@ use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
 use time::{OffsetDateTime, Duration};
 use crate::db::*;
 
-use std::{collections::HashMap};
-
 use crate::models::*;
 
 #[derive(Debug, Clone)]
@@ -60,7 +58,6 @@ pub async fn calculate_time_in_state(
 ) -> Result<Vec<StateTime>, sqlx::Error> {
     //TODO Implement actual calculation logic
     let transitions = get_raid_transitions(&pool, raid_id).await?;
-    let raid = get_active_raid(&pool).await?.expect("Expected Active Raid");
 
     for i in 0..transitions.len() {
         println!("{:?}", transitions[i])
@@ -71,8 +68,6 @@ pub async fn calculate_time_in_state(
 
 #[cfg(test)]
 mod tests {
-//    use std::intrinsics::mir::Offset;
-
     use crate::db::tests::setup_test_db;
 
     use super::*;
@@ -122,25 +117,24 @@ mod tests {
 
     #[tokio::test]
     async fn test_calculate_time_single_state_visit() -> Result<(), sqlx::Error> {
-        let pool = crate::db::tests::setup_test_db().await.expect("Failed to setup test db");
+        let pool = setup_test_db().await?;
         let session_id = create_session(&pool, SessionType::Stream, Some("Test Stream".into()), None).await?;
-        let session_start = OffsetDateTime::now_utc();
         // Session start had 20min dicking around in the Stash / Menus
 
 
-        //This is start of stream raid set up the 
+        //This is start of stream raid set up the
         let raid_id = create_raid(&pool, session_id, "customs", CharacterType::PMC, GameMode::PVE, None).await?;
         let mut time = OffsetDateTime::now_utc();
-        log_state_transition(&pool, raid_id, "stash_management", Some(time)).await.expect("Set Initial Raid State");
+        log_state_transition(&pool, raid_id, "stash_management", Some(time)).await?;
         time = time + time::Duration::seconds(120);
 
-        log_state_transition(&pool, raid_id, "queue", Some(time)).await.expect("Expected State Transiton to queue");
+        log_state_transition(&pool, raid_id, "queue", Some(time)).await?;
         time = time + time::Duration::seconds(60);
-        log_state_transition(&pool, raid_id,  "in_raid", Some(time)).await.expect("Expected State Transition to in_raid");
+        log_state_transition(&pool, raid_id,  "in_raid", Some(time)).await?;
         time = time + time::Duration::seconds(1200);
-        log_state_transition(&pool, raid_id, "stash_management", Some(time)).await.expect("Expected State Transitino to Stash");
+        log_state_transition(&pool, raid_id, "stash_management", Some(time)).await?;
 
-        let states = calculate_time_in_state(&pool, raid_id).await.expect("sates");
+        let _states = calculate_time_in_state(&pool, raid_id).await?;
 
         Ok(())
     }

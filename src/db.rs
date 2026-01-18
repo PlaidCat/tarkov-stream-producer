@@ -386,13 +386,13 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_get_all_sessions() -> Result<(), Error> {
-        let pool = setup_test_db().await.expect("Failed to setup_test_db");
+        let pool = setup_test_db().await?;
 
         let session_id = create_session(&pool, SessionType::Stream, Some("Test Stream".into()), None).await?;
         assert_eq!(session_id, 1);
         let _ = sleep(Duration::from_millis(100)).await;
 
-        end_session(&pool, session_id).await.expect("Failed to End Session");
+        end_session(&pool, session_id).await?;
 
         let session_id_2 = create_session(&pool, SessionType::Stream, Some("Test Stream".into()), None).await?;
         assert_eq!(session_id_2, 2);

@@ -24,12 +24,22 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), Error> {
 // Session Operations
 // ================================================================================================
 
-pub async fn create_session(pool: &SqlitePool, session_type: SessionType, notes: Option<String>,) -> Result<i64, Error> {
-    let id = sqlx::query!(r#"INSERT INTO stream_sessions ( session_type, notes)
-        VALUES (?, ?)
+pub async fn create_session(
+    pool: &SqlitePool, 
+    session_type: SessionType,
+    notes: Option<String>,
+    started_at: Option<OffsetDateTime>,
+) -> Result<i64, Error> {
+    let ts = started_at.unwrap_or_else(|| OffsetDateTime::now_utc());
+    
+
+    let id = sqlx::query!(
+        r#"INSERT INTO stream_sessions ( session_type, notes, started_at)
+        VALUES (?, ?, ?)
         RETURNING session_id"#,
         session_type,
-        notes)
+        notes,
+        ts)
         .fetch_one(pool)
         .await?
         .session_id;
@@ -105,18 +115,27 @@ pub async fn get_all_sessions(pool: &SqlitePool) -> Result<Vec<StreamSession>, E
 // ================================================================================================
 // Raid Operations
 // ================================================================================================
-pub async fn create_raid(pool: &SqlitePool, session_id: i64, map_name: &str, 
-    character_type: CharacterType, game_mode: GameMode,) -> Result<i64, Error> {
+pub async fn create_raid(
+    pool: &SqlitePool,
+    session_id: i64,
+    map_name: &str,
+    character_type: CharacterType,
+    game_mode: GameMode,
+    started_at: Option<OffsetDateTime>,
+) -> Result<i64, Error> {
+    let ts = started_at.unwrap_or_else(|| OffsetDateTime::now_utc());
+
     let id = sqlx::query!(
         r#"
-        INSERT INTO raids (session_id, map_name, character_type, game_mode)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO raids (session_id, map_name, character_type, game_mode, started_at)
+        VALUES (?, ?, ?, ?, ?)
         RETURNING raid_id
         "#,
         session_id,
         map_name,
         character_type,
-        game_mode
+        game_mode,
+        ts
     )
     .fetch_one(pool)
     .await?
@@ -355,7 +374,7 @@ pub mod tests {
     async fn test_get_session_by_id() -> Result<(), Error> {
         let pool = setup_test_db().await?;
 
-        let session_id = create_session(&pool, SessionType::Stream, Some("Test Stream".into())).await?;
+        let session_id = create_session(&pool, SessionType::Stream, Some("Test Stream".into()), None).await?;
 
         let full_session = get_session_by_id(&pool, session_id).await?.expect("Should have gotted a StreamSession");
 
@@ -369,13 +388,13 @@ pub mod tests {
     async fn test_get_all_sessions() -> Result<(), Error> {
         let pool = setup_test_db().await.expect("Failed to setup_test_db");
 
-        let session_id = create_session(&pool, SessionType::Stream, Some("Test Stream".into())).await?;
+        let session_id = create_session(&pool, SessionType::Stream, Some("Test Stream".into()), None).await?;
         assert_eq!(session_id, 1);
-        let _ = sleep(Duration::from_millis(100));
+        let _ = sleep(Duration::from_millis(100)).await;
 
         end_session(&pool, session_id).await.expect("Failed to End Session");
 
-        let session_id_2 = create_session(&pool, SessionType::Stream, Some("Test Stream".into())).await?;
+        let session_id_2 = create_session(&pool, SessionType::Stream, Some("Test Stream".into()), None).await?;
         assert_eq!(session_id_2, 2);
         
         let all_sessions = get_all_sessions(&pool).await?;
@@ -397,7 +416,7 @@ pub mod tests {
 
 
         //start Session
-        let session_id = create_session(&pool, SessionType::Stream, Some("Test Stream".into())).await?;
+        let session_id = create_session(&pool, SessionType::Stream, Some("Test Stream".into()), None).await?;
         assert_eq!(session_id, 1);
 
         // Get Active Session
@@ -406,7 +425,7 @@ pub mod tests {
         assert_eq!(active.session_type, Some(SessionType::Stream));
 
         // Start Raid
-        let raid_id = create_raid(&pool, session_id, "customs", CharacterType::PMC, GameMode::PVE).await?;
+        let raid_id = create_raid(&pool, session_id, "customs", CharacterType::PMC, GameMode::PVE, None).await?;
         assert_eq!(raid_id, 1);
 
         let active_raid = get_active_raid(&pool).await?.expect("Should have active raid");

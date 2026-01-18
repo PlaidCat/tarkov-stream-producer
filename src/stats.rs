@@ -78,15 +78,58 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    async fn test_calculate_time_before_first_raid() -> Result<(), sqlx::Error> {
+        let pool = setup_test_db().await?;
+
+        let base_time = OffsetDateTime::now_utc();
+
+        //Session 1: Started at base time first raid is 10 min in
+        let session1_start = base_time;
+        let session1 = create_session(
+            &pool, SessionType::Stream, Some("Session 1".into()), Some(session1_start)).await?;
+
+        let raid1_start = session1_start + time::Duration::minutes(10);
+        let _raid1 = create_raid(&pool, session1, "customs", CharacterType::PMC, GameMode::PVE, Some(raid1_start)).await?;
+
+        //Session2 started 1 day later, first raid 30 min after
+        let session2_start = base_time + time::Duration::days(1);
+        let session2 = create_session(
+            &pool, SessionType::Stream, Some("Session 2".into()), Some(session2_start)).await?;
+
+        let raid2_start = session2_start + time::Duration::minutes(30);
+        let _raid2 = create_raid(
+            &pool, session2, "Streets of Tarkov:", CharacterType::PMC, GameMode::PVE, Some(raid2_start)).await?;
+
+        //Session3 started 2 days later, first raid 5 min after
+        let session3_start = session2_start + time::Duration::days(2);
+        let session3 = create_session(
+            &pool, SessionType::Stream, Some("Session 3".into()), Some(session3_start)).await?;
+
+        let raid3_start = session3_start + time::Duration::minutes(5);
+        let _raid3 = create_raid(
+            &pool, session3, "Shoreline", CharacterType::PMC, GameMode::PVE, Some(raid3_start)).await?;
+
+        // Calculate the dead time
+        let result = calculate_time_before_first_raid(&pool).await?;
+
+        assert_eq!(result.sessions, 3, "should have analyzed 3 sessions");
+
+        assert_eq!(result.duration, time::Duration::minutes(15), "Average should be 15 minutes");
+
+        pool.close().await;
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn test_calculate_time_single_state_visit() -> Result<(), sqlx::Error> {
         let pool = crate::db::tests::setup_test_db().await.expect("Failed to setup test db");
-        let session_id = create_session(&pool, SessionType::Stream, Some("Test Stream".into())).await?;
+        let session_id = create_session(&pool, SessionType::Stream, Some("Test Stream".into()), None).await?;
         let session_start = OffsetDateTime::now_utc();
         // Session start had 20min dicking around in the Stash / Menus
 
 
         //This is start of stream raid set up the 
-        let raid_id = create_raid(&pool, session_id, "customs", CharacterType::PMC, GameMode::PVE).await?;
+        let raid_id = create_raid(&pool, session_id, "customs", CharacterType::PMC, GameMode::PVE, None).await?;
         let mut time = OffsetDateTime::now_utc();
         log_state_transition(&pool, raid_id, "stash_management", Some(time)).await.expect("Set Initial Raid State");
         time = time + time::Duration::seconds(120);

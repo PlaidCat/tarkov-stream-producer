@@ -10,9 +10,9 @@ gameplay statistics and display them on stream. The project is in early developm
 (Phase 1) with plans to evolve from manual control via REST API to automated screen
 analysis using OCR/vision.
 
-**Current Status:** Basic logging and testing infrastructure in place. Database
-integration, web API, OBS integration, and automated screen analysis are planned
-future phases.
+**Current Status:** Phase 2a (Core) completed with 4-table database schema and CRUD operations.
+Currently working on Phase 2a-Extended (analytics and time tracking). Web API (Phase 2b),
+OBS integration, and automated screen analysis are planned future phases.
 
 ## Hardware Environment
 
@@ -52,13 +52,21 @@ future phases.
 
 tarkov_stream_producer/
 ├── src/
-│   └── main.rs          # Entry point with tracing setup
+│   ├── main.rs          # Entry point with tracing setup
+│   ├── models.rs        # Data structures (Session, Raid, Kill, enums)
+│   ├── db.rs            # Database CRUD operations and migrations
+│   └── stats.rs         # Analytics functions (in progress)
+├── migrations/
+│   └── 20251226000000_initial_schema.sql  # 4-table schema
 ├── .github/workflows/
 │   ├── ci.yml           # CI pipeline for Linux/Windows
 │   └── release.yml      # Release builds for tagged versions
 ├── docs/
-│   └── phase_1b_plan.md # Phase 1.b implementation plan
+│   ├── phase_1b_plan.md           # Phase 1.b implementation plan
+│   ├── phase_2a_complete_schema.md # Complete 4-table schema documentation
+│   └── phase_2b_rest_api_plan.md  # Phase 2b REST API plan
 ├── Cargo.toml           # Project manifest
+├── dev.db               # Development SQLite database (gitignored)
 └── target/              # Build artifacts (gitignored)
 
 ## Development Commands
@@ -139,15 +147,17 @@ Database Migrations (Phase 2a) ✅
   to allow discovery of new values without schema migrations
 - **Started:** 2025-12-26
 
-Session Time Tracking (Phase 2a-Extended)
+Session Time Tracking (Phase 2a-Extended) - IN PROGRESS
 
 - **Session overhead time**: Gap between session start and first raid start
 - Tracks "stream setup", "just chatting", or menu time before first raid begins
-- Implemented in `src/stats.rs` with `calculate_time_before_first_raid()`
+- Implementation in `src/stats.rs` with `calculate_time_before_first_raid()` (in progress)
 - No schema changes needed - calculated from `session.started_at` and first `raid.started_at`
-- Database helper functions in `src/db.rs`: `get_session_by_id()`, `get_first_raid_for_session()`
+- **Pending:** Database helper functions in `src/db.rs`: `get_session_by_id()`, `get_all_sessions()`, `get_first_raid_for_session()`
+- **Pending:** Complete implementation and test with controlled timestamps
 - Useful metric: "How much time do I waste before actually starting raids?"
 - Aggregates across all sessions for historical analysis
+- **Status:** Planning complete, implementation started 2026-01-18
 
 Planned Architecture (Future Phases)
 

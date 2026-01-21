@@ -63,15 +63,19 @@ This document outlines the development plan for the Tarkov Stream Producer appli
   - Fixed error handling: replaced .expect() with ? in test functions
   - Fixed typos in error messages
   - Removed unused imports and variables
-- [ ] Implement `calculate_time_in_state()` function (0.75h)
-  - Query to sum time between state transitions
-  - Handle multiple visits to same state
+- [x] Implement `calculate_time_in_state()` function (0.75h) - COMPLETED 2026-01-20
+  - HashMap-based accumulation of durations between state transitions
+  - Handle multiple visits to same state using Entry API
+  - Convert to Vec<StateTime> for return
+- [x] Write comprehensive test for state transitions (0.75h) - COMPLETED 2026-01-20
+  - Realistic 7-state raid flow (pre_raid_setup → survived)
+  - 3 scav kills during raid
+  - Full duration assertions for all states
 - [ ] Implement session comparison queries (0.5h)
   - "This stream vs all-time" stats
   - PVE vs PVP comparisons
-- [ ] Write comprehensive tests for state transitions (0.75h)
+- [ ] Write test for edge cases (0.5h)
   - Test "backwards" transitions (queue → stash)
-  - Test time calculations
   - Test edge cases (reconnects, cancels)
 
 ### Phase 2b: REST API with Web UI (14-18 hours total)

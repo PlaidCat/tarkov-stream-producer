@@ -215,6 +215,48 @@ Phase 5: Chat Bot Integration (Deferred)
 - Production code passes `None`, tests pass `Some(timestamp)` for deterministic behavior
 - Follows consistent pattern across: `create_session()`, `create_raid()`, `log_state_transition()`, `add_kill()`, `end_raid()`
 
+### HashMap and Accumulation Patterns (2026-01-20)
+- **Use HashMap for accumulation**: When accumulating values by key (e.g., time per state), use `HashMap<K, V>`
+- **Entry API pattern**: More efficient than manual `get_mut()` + `insert()`
+  ```rust
+  map.entry(key.clone())
+      .and_modify(|v| *v = *v + new_value)  // Update if exists
+      .or_insert(new_value);                 // Insert if new
+  ```
+- **Only one HashMap lookup** vs two with `if let Some() { } else { }` pattern
+- **Why clone for keys**: HashMap needs ownership of keys, so clone when key is borrowed via reference
+
+### References vs Clones (2026-01-20)
+- **`&vec[i]` creates a reference (borrow)**, not a clone
+- **`let item = vec[i]`** would try to move/take ownership (often won't compile for Vec)
+- **`let item = vec[i].clone()`** creates a copy
+- **When to clone**: Only when you need ownership (e.g., HashMap keys, returning from functions)
+- **Prefer borrowing**: More efficient, no memory allocation
+
+### Iterator Chains (2026-01-20)
+- **`into_iter()`**: Consumes collection, yields owned values - use when you don't need original
+- **`.iter()`**: Borrows collection, yields references - collection still usable after
+- **`.iter_mut()`**: Mutable borrows, yields mutable references
+- **Tuple destructuring**: `|(key, value)|` in closures to split tuples
+- **Field shorthand**: `Struct { field1, field2 }` when variable names match field names
+- **Pattern**: `collection.into_iter().map(|x| transform(x)).collect()` is idiomatic
+
+### Searching Collections (2026-01-20)
+- **`.find()`**: O(n) search, fine for small collections (<10-20 items)
+  ```rust
+  let item = vec.iter().find(|x| x.field == "value");  // Returns Option<&T>
+  ```
+- **HashMap**: O(1) lookup, better for large collections or repeated searches
+- **Binary search**: O(log n), requires sorted collection
+- **Trade-off**: For small datasets like state transitions (~7-10 states), `.find()` is simpler and fast enough
+
+### State Flow Clarification (2026-01-20)
+- **Raids start in `pre_raid_setup`**, NOT `stash_management`
+- **Session overhead time**: Gap between session start and first raid start (tracked by `calculate_time_before_first_raid()`)
+- **Between raids**: After terminal state (`survived`/`died`/`mia`), implicit return to stash management
+- **Next raid creation**: Starts fresh in `pre_raid_setup` state
+- **Stash time between raids**: Will be tracked separately in future implementation
+
 ### Code Review Process
 - User prefers to see exact line numbers and issues before corrections
 - Always read the actual file to verify line numbers (git diff may not reflect current state)

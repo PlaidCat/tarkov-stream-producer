@@ -3,6 +3,7 @@ use time::{OffsetDateTime, Duration};
 use crate::db::*;
 
 use crate::models::*;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct StateTime {
@@ -56,14 +57,37 @@ pub async fn calculate_time_in_state(
     pool: &SqlitePool,
     raid_id: i64
 ) -> Result<Vec<StateTime>, sqlx::Error> {
-    //TODO Implement actual calculation logic
     let transitions = get_raid_transitions(&pool, raid_id).await?;
 
-    for i in 0..transitions.len() {
-        println!("{:?}", transitions[i])
+    let mut state_durations: HashMap<String, Duration> = HashMap::new();
+
+    for i in 0..transitions.len() - 1 {
+        let current = &transitions[i];
+        let next = &transitions[i + 1];
+
+        let duration = next.transitioned_at - current.transitioned_at;
+
+        //This is confusing to me but is more efficient than how I would have thought to do this
+        // if let Some(existing) = state_durations.get_mut(current.to_state.clone()) {
+        //      *existing = *existing + duration; // update if exists
+        // } else {
+        //      state_durations.insert(key, duration); // Insert if New
+        // }
+        // I've seen the below and had Claude explain it to me, this is a note to explain this
+        // pattern to me
+        state_durations.entry(current.to_state.clone())
+            .and_modify(|d| *d = *d + duration)
+            .or_insert(duration);
     }
 
-    Ok(Vec::new())
+    // Move Ownership from HashMap into an iter of Iterator<Key, value> tuples
+    // Map these tuples into a new StateTime struct, and then collect
+    // the mapped StateTime structs into the Vec<>
+    let state_times: Vec<StateTime> = state_durations.into_iter()
+            .map(|(state, duration)| StateTime { state, duration })
+            .collect();
+
+    Ok(state_times)
 }
 
 #[cfg(test)]
@@ -75,6 +99,10 @@ mod tests {
     #[tokio::test]
     async fn test_calculate_time_before_first_raid() -> Result<(), sqlx::Error> {
         let pool = setup_test_db().await?;
+
+        let zero_session = calculate_time_before_first_raid(&pool).await?;
+        assert_eq!(zero_session.duration, Duration::ZERO);
+
 
         let base_time = OffsetDateTime::now_utc();
 
@@ -118,24 +146,121 @@ mod tests {
     #[tokio::test]
     async fn test_calculate_time_single_state_visit() -> Result<(), sqlx::Error> {
         let pool = setup_test_db().await?;
-        let session_id = create_session(&pool, SessionType::Stream, Some("Test Stream".into()), None).await?;
-        // Session start had 20min dicking around in the Stash / Menus
 
+        // Base time for all calculations
+        let base_time = OffsetDateTime::now_utc();
 
-        //This is start of stream raid set up the
-        let raid_id = create_raid(&pool, session_id, "customs", CharacterType::PMC, GameMode::PVE, None).await?;
-        let mut time = OffsetDateTime::now_utc();
-        log_state_transition(&pool, raid_id, "stash_management", Some(time)).await?;
-        time = time + time::Duration::seconds(120);
+        // Start Session at base_time
+        let session_start = base_time;
+        let session_id = create_session(
+            &pool,
+            SessionType::Stream,
+            Some("Test Stream".into()),
+            Some(session_start)
+        ).await?;
 
-        log_state_transition(&pool, raid_id, "queue", Some(time)).await?;
-        time = time + time::Duration::seconds(60);
-        log_state_transition(&pool, raid_id,  "in_raid", Some(time)).await?;
-        time = time + time::Duration::seconds(1200);
-        log_state_transition(&pool, raid_id, "stash_management", Some(time)).await?;
+        // Wait 20 min before starting first raid (session overhead time)
+        // This gap is tracked by calculate_time_before_first_raid()
+        let raid_start = session_start + time::Duration::minutes(20);
 
-        let _states = calculate_time_in_state(&pool, raid_id).await?;
+        // Start first raid on Shoreline for PVE
+        // Raid begins in pre_raid_setup state
+        let raid_id = create_raid(
+            &pool,
+            session_id,
+            "Shoreline",
+            CharacterType::PMC,
+            GameMode::PVE,
+            Some(raid_start)
+        ).await?;
 
+        // State flow with timestamps
+        let mut time = raid_start;
+
+        // Initial state: pre_raid_setup (selecting map, insurance)
+        log_state_transition(&pool, raid_id, "pre_raid_setup", Some(time)).await?;
+
+        // Spend 3 min in pre-raid setup
+        time = time + time::Duration::minutes(3);
+
+        // Enter queue - wait 5 min
+        log_state_transition(&pool, raid_id, "queuing", Some(time)).await?;
+        time = time + time::Duration::minutes(5);
+
+        // Matched and deploying (loading screens) - 2 min
+        log_state_transition(&pool, raid_id, "deploying_committed", Some(time)).await?;
+        time = time + time::Duration::minutes(2);
+
+        // Raid active for 17 min
+        log_state_transition(&pool, raid_id, "raid_active", Some(time)).await?;
+
+        // Add 3 kills (all scavs) during the raid
+        let kill_time_1 = time + time::Duration::minutes(5);
+        add_kill(&pool, raid_id, "scav", Some("AK-74M".to_string()), Some(false), Some(kill_time_1)).await?;
+
+        let kill_time_2 = time + time::Duration::minutes(10);
+        add_kill(&pool, raid_id, "scav", Some("Mosin".to_string()), Some(true), Some(kill_time_2)).await?;
+
+        let kill_time_3 = time + time::Duration::minutes(15);
+        add_kill(&pool, raid_id, "scav", Some("SKS".to_string()), Some(false), Some(kill_time_3)).await?;
+
+        time = time + time::Duration::minutes(17);
+
+        // Extract - raid ending (1 min)
+        log_state_transition(&pool, raid_id, "raid_ending", Some(time)).await?;
+        time = time + time::Duration::minutes(1);
+
+        // Post-raid review (statistics, experience) - 2 min
+        log_state_transition(&pool, raid_id, "post_raid_review", Some(time)).await?;
+        time = time + time::Duration::minutes(2);
+
+        // Final state: survived
+        log_state_transition(&pool, raid_id, "survived", Some(time)).await?;
+        time = time + time::Duration::seconds(30);
+
+        // End the raid
+        end_raid(&pool, raid_id, None, Some("Tunnel".into())).await?;
+
+        // Calculate time spent in each state
+        let states = calculate_time_in_state(&pool, raid_id).await?;
+
+        // Assert all expected durations
+        let pre_raid = states.iter()
+            .find(|s| s.state == "pre_raid_setup")
+            .expect("Should have pre_raid_setup state");
+        assert_eq!(pre_raid.duration, time::Duration::minutes(3));
+
+        let queuing = states.iter()
+            .find(|s| s.state == "queuing")
+            .expect("Should have queuing state");
+        assert_eq!(queuing.duration, time::Duration::minutes(5));
+
+        let deploying = states.iter()
+            .find(|s| s.state == "deploying_committed")
+            .expect("Should have deploying_committed state");
+        assert_eq!(deploying.duration, time::Duration::minutes(2));
+
+        let raid_active = states.iter()
+            .find(|s| s.state == "raid_active")
+            .expect("Should have raid_active state");
+        assert_eq!(raid_active.duration, time::Duration::minutes(17));
+
+        let raid_ending = states.iter()
+            .find(|s| s.state == "raid_ending")
+            .expect("Should have raid_ending state");
+        assert_eq!(raid_ending.duration, time::Duration::minutes(1));
+
+        let post_raid = states.iter()
+            .find(|s| s.state == "post_raid_review")
+            .expect("Should have post_raid_review state");
+        assert_eq!(post_raid.duration, time::Duration::minutes(2));
+
+        let survived = states.iter()
+            .find(|s| s.state == "survived")
+            .expect("Should have survived state");
+        assert_eq!(survived.duration, time::Duration::seconds(30));
+
+        pool.close().await;
         Ok(())
     }
 }

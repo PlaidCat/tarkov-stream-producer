@@ -46,7 +46,7 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 - [x] Implement CRUD for Kill (0.5-0.75h)
 - [x] Write basic unit tests for all CRUD operations (1.5-2h, revised from 1h) - Session & Raid lifecycle tests added
 
-### Phase 2a-Extended: Analytics & Time Tracking (2-3 hours total, revised)
+### Phase 2a-Extended: Analytics & Time Tracking (4-5 hours total, revised)
 - [x] Add database helper functions to src/db.rs (0.5h) - COMPLETED 2026-01-18
   - get_session_by_id()
   - get_all_sessions()
@@ -71,12 +71,22 @@ This document outlines the development plan for the Tarkov Stream Producer appli
   - Realistic 7-state raid flow (pre_raid_setup → survived)
   - 3 scav kills during raid
   - Full duration assertions for all states
-- [ ] Implement session comparison queries (0.5h)
-  - "This stream vs all-time" stats
-  - PVE vs PVP comparisons
-- [ ] Write test for edge cases (0.5h)
-  - Test "backwards" transitions (queue → stash)
-  - Test edge cases (reconnects, cancels)
+- [x] Implement session comparison queries (0.5h) - COMPLETED 2026-01-24
+  - "This stream vs all-time" stats - compare_session_to_mode_global()
+  - PVE vs PVP comparisons - get_mode_stats_for_session()
+  - Tests: test_session_comparison(), test_game_mode_filtering()
+- [x] Write test for edge cases (0.75h) - PARTIALLY COMPLETE 2026-01-27 (2 of 3 tests done)
+  - Test "backwards" transitions (queue → stash) - test_backwards_transition_queue_cancel() ✅
+  - Test reconnect during raid - test_reconnect_during_raid() ✅
+  - Test pre-raid cancel and new raid - test_pre_raid_cancel_then_new_raid() ❌ TODO
+- [ ] Implement `calculate_time_between_raids()` function (0.5h) - NOT STARTED
+  - Calculate average stash time between raids within a session
+  - Track shortest/longest gaps for analytics
+  - Measure "time wasted" reorganizing gear between raids
+- [ ] Write test for `calculate_time_between_raids()` (0.5h) - NOT STARTED
+  - Multiple raids with varying gap times
+  - Verify avg/shortest/longest calculations
+  - Handle edge cases: 0 raids, 1 raid, active raids
 
 ### Phase 2b: REST API with Web UI (14-18 hours total)
 **Note:** Axum framework with Askama templates for manual control and web-based kill entry.

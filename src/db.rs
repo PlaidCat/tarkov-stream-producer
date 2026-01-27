@@ -1,5 +1,5 @@
 use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
-use sqlx::{pool, Error, Transaction};
+use sqlx::{Error, Transaction};
 use time::OffsetDateTime;
 
 use crate::models::{CharacterType, Raid, GameMode, SessionType, StreamSession, RaidStateTransition};
@@ -205,6 +205,51 @@ pub async fn get_first_raid_for_session(pool: &SqlitePool, session_id: i64) -> R
         "#,
         session_id
     ).fetch_optional(pool).await
+}
+
+pub async fn get_raids_for_session(
+    pool: &SqlitePool,
+    session_id: i64
+) -> Result<Vec<Raid>, Error> {
+    sqlx::query_as!(
+        Raid,
+        r#"
+        SELECT
+            raid_id as "raid_id!",
+            session_id as "session_id!",
+            started_at,
+            ended_at,
+            map_name as "map_name!",
+            character_type AS "character_type: CharacterType",
+            game_mode as "game_mode: GameMode",
+            current_state as "current_state!",
+            extract_location
+        FROM raids
+        WHERE session_id = ?
+        ORDER BY started_at ASC
+        "#,
+        session_id
+    ).fetch_all(pool).await
+}
+
+pub async fn get_all_raids(pool: &SqlitePool) -> Result<Vec<Raid>, Error> {
+    sqlx::query_as!(
+        Raid,
+        r#"
+        SELECT
+            raid_id as "raid_id!",
+            session_id as "session_id!",
+            started_at,
+            ended_at,
+            map_name as "map_name!",
+            character_type AS "character_type: CharacterType",
+            game_mode as "game_mode: GameMode",
+            current_state as "current_state!",
+            extract_location
+        FROM raids
+        ORDER BY started_at ASC
+        "#
+    ).fetch_all(pool).await
 }
 
 // ================================================================================================
@@ -494,6 +539,63 @@ pub mod tests {
 
         let active = get_active_session(&pool).await?;
         assert!(active.is_none());
+
+        pool.close().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_get_raids_for_session() -> Result<(), Error> {
+        let pool = setup_test_db().await?;
+        let base_time = OffsetDateTime::now_utc();
+
+        // Setup: Create two sessions
+        let s1 = create_session(&pool, SessionType::Stream, None, Some(base_time)).await?;
+        let s2 = create_session(&pool, SessionType::Stream, None, Some(base_time + time::Duration::hours(1))).await?;
+
+        // Session 1: Has 2 raids
+        let r1_1 = create_raid(&pool, s1, "Customs", CharacterType::PMC, GameMode::PVP, Some(base_time + time::Duration::minutes(10))).await?;
+        let r1_2 = create_raid(&pool, s1, "Woods", CharacterType::Scav, GameMode::PVE, Some(base_time + time::Duration::minutes(30))).await?;
+
+        // Session 2: Has 1 raid
+        let r2_1 = create_raid(&pool, s2, "Factory", CharacterType::PMC, GameMode::PVP, Some(base_time + time::Duration::hours(1) + time::Duration::minutes(10))).await?;
+
+        // Test: Get Session 1 Raids
+        let s1_raids = get_raids_for_session(&pool, s1).await?;
+        assert_eq!(s1_raids.len(), 2, "Session 1 should have 2 raids");
+        // Verify order (ASC by started_at)
+        assert_eq!(s1_raids[0].raid_id, r1_1);
+        assert_eq!(s1_raids[1].raid_id, r1_2);
+
+        // Test: Get Session 2 Raids
+        let s2_raids = get_raids_for_session(&pool, s2).await?;
+        assert_eq!(s2_raids.len(), 1, "Session 2 should have 1 raid");
+        assert_eq!(s2_raids[0].raid_id, r2_1);
+
+        pool.close().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_get_all_raids() -> Result<(), Error> {
+        let pool = setup_test_db().await?;
+        let base_time = OffsetDateTime::now_utc();
+
+        let s1 = create_session(&pool, SessionType::Stream, None, Some(base_time)).await?;
+        
+        // Create 3 raids at different times
+        let _r1 = create_raid(&pool, s1, "Map1", CharacterType::PMC, GameMode::PVP, Some(base_time)).await?;
+        let _r2 = create_raid(&pool, s1, "Map2", CharacterType::PMC, GameMode::PVP, Some(base_time + time::Duration::minutes(10))).await?;
+        let _r3 = create_raid(&pool, s1, "Map3", CharacterType::PMC, GameMode::PVP, Some(base_time + time::Duration::minutes(20))).await?;
+
+        // Test: Get All Raids
+        let all = get_all_raids(&pool).await?;
+        assert_eq!(all.len(), 3);
+        
+        // Verify order
+        assert_eq!(all[0].map_name, "Map1");
+        assert_eq!(all[1].map_name, "Map2");
+        assert_eq!(all[2].map_name, "Map3");
 
         pool.close().await;
         Ok(())

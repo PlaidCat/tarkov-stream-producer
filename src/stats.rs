@@ -1,5 +1,5 @@
 use sqlx::sqlite::{SqlitePool};
-use time::{OffsetDateTime, Duration};
+use time::{Duration};
 use crate::db::*;
 
 use crate::models::*;
@@ -218,6 +218,7 @@ pub async fn calculate_time_in_state(
 #[cfg(test)]
 mod tests {
     use crate::db::tests::setup_test_db;
+    use time::OffsetDateTime;
 
     use super::*;
 

@@ -1003,4 +1003,132 @@ mod tests {
         pool.close().await;
         Ok(())
     }
+
+    #[tokio::test]
+    async fn test_pre_raid_cancel_then_new_raid() -> Result<(), sqlx::Error> {
+        let pool = setup_test_db().await?;
+        let base_time = OffsetDateTime::now_utc();
+
+        let session_id = create_session(&pool, SessionType::Stream, None, Some(base_time)).await?;
+
+        // Raid 1: Start pre-raid flow, then cancel before deploying
+        let raid1 = create_raid(
+            &pool,
+            session_id,
+            "Customs",
+            CharacterType::PMC,
+            GameMode::PVP,
+            Some(base_time)
+        ).await?;
+
+        let mut time = base_time;
+
+        // Normal pre-raid flow
+        log_state_transition(&pool, raid1, "pre_raid_setup", Some(time)).await?;
+        time = time + time::Duration::minutes(3);
+
+        log_state_transition(&pool, raid1, "queuing", Some(time)).await?;
+        time = time + time::Duration::minutes(2);
+
+        // Cancel before deploying - return to stash
+        log_state_transition(&pool, raid1, "cancelled", Some(time)).await?;
+        time = time + time::Duration::minutes(1);
+
+        // End the cancelled raid
+        end_raid(&pool, raid1, Some(time), None).await?;
+
+        // Verify raid1 transitions
+        let raid1_transitions = get_raid_transitions(&pool, raid1).await?;
+        assert_eq!(raid1_transitions.len(), 3, "Cancelled raid should have 3 transitions");
+
+        // Verify final state is cancelled
+        let final_state = &raid1_transitions.last().unwrap();
+        assert_eq!(final_state.to_state, "cancelled", "Final state should be cancelled");
+
+        // Verify time in states before cancellation
+        let raid1_state_times = calculate_time_in_state(&pool, raid1).await?;
+
+        // pre_raid_setup: 3 minutes
+        let pre_raid = raid1_state_times.iter()
+            .find(|s| s.state == "pre_raid_setup")
+            .expect("Should have pre_raid_setup state");
+        assert_eq!(pre_raid.duration, time::Duration::minutes(3));
+
+        // queuing: 2 minutes
+        let queuing = raid1_state_times.iter()
+            .find(|s| s.state == "queuing")
+            .expect("Should have queuing state");
+        assert_eq!(queuing.duration, time::Duration::minutes(2));
+
+        // Terminal state "cancelled" should not have duration
+        assert!(raid1_state_times.iter().find(|s| s.state == "cancelled").is_none(),
+            "Terminal state cancelled should not have duration");
+
+        // Time passes in stash (5 minutes)
+        time = time + time::Duration::minutes(5);
+
+        // Raid 2: New raid after cancellation - complete normally
+        let raid2 = create_raid(
+            &pool,
+            session_id,
+            "Factory",
+            CharacterType::PMC,
+            GameMode::PVP,
+            Some(time)
+        ).await?;
+
+        log_state_transition(&pool, raid2, "pre_raid_setup", Some(time)).await?;
+        time = time + time::Duration::minutes(2);
+
+        log_state_transition(&pool, raid2, "queuing", Some(time)).await?;
+        time = time + time::Duration::minutes(3);
+
+        log_state_transition(&pool, raid2, "deploying_committed", Some(time)).await?;
+        time = time + time::Duration::minutes(1);
+
+        log_state_transition(&pool, raid2, "raid_active", Some(time)).await?;
+        time = time + time::Duration::minutes(15);
+
+        // Get 2 kills
+        add_kill(&pool, raid2, "scav", Some("AK-74".into()), Some(false), Some(time)).await?;
+        time = time + time::Duration::minutes(3);
+        add_kill(&pool, raid2, "pmc", Some("M4A1".into()), Some(true), Some(time)).await?;
+        time = time + time::Duration::minutes(2);
+
+        log_state_transition(&pool, raid2, "raid_ending", Some(time)).await?;
+        time = time + time::Duration::minutes(1);
+
+        log_state_transition(&pool, raid2, "survived", Some(time)).await?;
+        end_raid(&pool, raid2, Some(time), Some("Extract".into())).await?;
+
+        // Verify raid2 completed successfully
+        let raid2_transitions = get_raid_transitions(&pool, raid2).await?;
+        assert_eq!(raid2_transitions.len(), 6, "Completed raid should have 6 transitions");
+
+        let raid2_final = &raid2_transitions.last().unwrap();
+        assert_eq!(raid2_final.to_state, "survived", "Raid2 should have survived");
+
+        // Verify kills for raid2
+        let kills = get_kills_for_raid(&pool, raid2).await?;
+        assert_eq!(kills.len(), 2, "Raid2 should have 2 kills");
+
+        // Verify both raids exist for the session
+        let session_raids = get_raids_for_session(&pool, session_id).await?;
+        assert_eq!(session_raids.len(), 2, "Session should have 2 raids");
+        assert_eq!(session_raids[0].raid_id, raid1, "First raid should be cancelled raid");
+        assert_eq!(session_raids[1].raid_id, raid2, "Second raid should be completed raid");
+
+        // Verify between-raids time calculation
+        // Raid1 ends at cancelled state (has ended_at timestamp)
+        // Raid2 starts 5 min later
+        // Gap: raid1 ended at (base + 6min), raid2 started at (base + 11min) = 5 min gap
+        let between_raids = calculate_time_between_raids_for_session(&pool, session_id).await?;
+        assert_eq!(between_raids.gap_count, 1, "Should have 1 gap between cancelled raid and next raid");
+        assert_eq!(between_raids.avg_gap, time::Duration::minutes(5), "Gap should be 5 minutes");
+        assert_eq!(between_raids.shortest_gap, time::Duration::minutes(5));
+        assert_eq!(between_raids.longest_gap, time::Duration::minutes(5));
+
+        pool.close().await;
+        Ok(())
+    }
 }

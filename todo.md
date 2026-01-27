@@ -78,6 +78,7 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 - [x] Write test for edge cases (0.75h) - COMPLETED 2026-01-27
   - Test "backwards" transitions (queue → stash) - test_backwards_transition_queue_cancel() ✅
   - Test reconnect during raid - test_reconnect_during_raid() ✅
+  - Test pre-raid cancel and new raid - test_pre_raid_cancel_then_new_raid() ✅
 - [x] Implement `calculate_time_between_raids()` function (0.5h) - COMPLETED 2026-01-27
   - Calculate average stash time between raids within a session
   - Track shortest/longest gaps for analytics

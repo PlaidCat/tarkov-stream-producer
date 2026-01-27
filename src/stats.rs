@@ -40,6 +40,97 @@ pub struct ModeStats {
     pub pvp: SessionStats,
 }
 
+#[derive(Debug, Clone)]
+pub struct BetweenRaidsTime {
+    pub avg_gap: Duration,
+    pub shortest_gap: Duration,
+    pub longest_gap: Duration,
+    pub total_gap: Duration,
+    pub gap_count: i64,
+}
+
+pub async fn calculate_time_between_raids_for_session(
+    pool: &SqlitePool,
+    session_id: i64,
+) -> Result<BetweenRaidsTime, sqlx::Error> {
+    let raids = get_raids_for_session(pool, session_id).await?;
+    Ok(calculate_gaps_from_raids(&raids))
+}
+
+pub async fn calculate_time_between_raids_global(
+    pool: &SqlitePool,
+) -> Result<BetweenRaidsTime, sqlx::Error> {
+    let raids = get_all_raids(pool).await?;
+    Ok(calculate_gaps_from_raids(&raids))
+}
+
+fn calculate_gaps_from_raids(
+    raids: &[Raid],
+) -> BetweenRaidsTime {
+    let mut total_gap = Duration::ZERO;
+    let mut avg_gap = Duration::ZERO;
+    let mut shortest_gap = Duration::ZERO;
+    let mut longest_gap = Duration::ZERO;
+    let mut gap_count = 0;
+
+    if raids.len() < 2 {
+        return BetweenRaidsTime{
+            avg_gap, 
+            shortest_gap,
+            longest_gap,
+            total_gap,
+            gap_count 
+        };
+    }
+
+    for i in 0..raids.len()-1 {
+        let Some(ended_at) = raids[i].ended_at else {
+            continue;
+        };
+
+        if raids[i+1].ended_at.is_none() {
+            continue;
+        }
+
+        if raids[i].session_id != raids[i+1].session_id {
+            continue;
+        }
+
+        let delta = raids[i+1].started_at - ended_at;
+        
+        if delta < Duration::ZERO {
+            continue;
+        }
+
+        total_gap += delta;
+        gap_count += 1;
+        
+        if shortest_gap == Duration::ZERO {
+            shortest_gap = delta;
+        }
+
+        if shortest_gap > delta {
+            shortest_gap = delta;
+        }
+
+        if longest_gap < delta {
+            longest_gap = delta;
+        }
+    }
+   
+    if gap_count > 0 {
+        avg_gap = total_gap / (gap_count as i32);
+    }
+
+    BetweenRaidsTime{ 
+        avg_gap,
+        shortest_gap,
+        longest_gap,
+        total_gap,
+        gap_count
+    }
+}
+
 pub async fn compare_session_to_mode_global(
     pool: &SqlitePool,
     session_id: i64,
@@ -727,6 +818,187 @@ mod tests {
         // Verify all kills were recorded (3 total)
         let kills = get_kills_for_raid(&pool, raid_id).await?;
         assert_eq!(kills.len(), 3, "Should have 3 kills across disconnect");
+
+        pool.close().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_calculate_time_between_raids() -> Result<(), sqlx::Error> {
+        let pool = setup_test_db().await?;
+        let base_time = OffsetDateTime::now_utc();
+
+        // Create session
+        let session_id = create_session(&pool, SessionType::Stream, None, Some(base_time)).await?;
+
+        // Raid 1: 10 min duration, ends at base_time + 10min
+        let raid1 = create_raid(&pool, session_id, "Customs", CharacterType::PMC, GameMode::PVP, Some(base_time)).await?;
+        log_state_transition(&pool, raid1, "survived", Some(base_time + time::Duration::minutes(10))).await?;
+        end_raid(&pool, raid1, Some(base_time + time::Duration::minutes(10)), None).await?;
+
+        // Gap 1: 5 minutes in stash (from 10min to 15min)
+
+        // Raid 2: Starts at 15min, ends at 35min (20 min duration)
+        let raid2 = create_raid(&pool, session_id, "Woods", CharacterType::PMC, GameMode::PVE, Some(base_time + time::Duration::minutes(15))).await?;
+        log_state_transition(&pool, raid2, "survived", Some(base_time + time::Duration::minutes(35))).await?;
+        end_raid(&pool, raid2, Some(base_time + time::Duration::minutes(35)), None).await?;
+
+        // Gap 2: 10 minutes in stash (from 35min to 45min)
+
+        // Raid 3: Starts at 45min, ends at 60min (15 min duration)
+        let raid3 = create_raid(&pool, session_id, "Factory", CharacterType::PMC, GameMode::PVP, Some(base_time + time::Duration::minutes(45))).await?;
+        log_state_transition(&pool, raid3, "survived", Some(base_time + time::Duration::minutes(60))).await?;
+        end_raid(&pool, raid3, Some(base_time + time::Duration::minutes(60)), None).await?;
+
+        // Gap 3: 15 minutes in stash (from 60min to 75min)
+
+        // Raid 4: Starts at 75min, ends at 85min (10 min duration)
+        let raid4 = create_raid(&pool, session_id, "Shoreline", CharacterType::PMC, GameMode::PVP, Some(base_time + time::Duration::minutes(75))).await?;
+        log_state_transition(&pool, raid4, "survived", Some(base_time + time::Duration::minutes(85))).await?;
+        end_raid(&pool, raid4, Some(base_time + time::Duration::minutes(85)), None).await?;
+
+        // Calculate between-raids time
+        let between_raids = calculate_time_between_raids_for_session(&pool, session_id).await?;
+
+        // Verify calculations
+        // Gaps: 5min, 10min, 15min
+        // Average: (5 + 10 + 15) / 3 = 10 minutes
+        assert_eq!(between_raids.gap_count, 3, "Should have 3 gaps between 4 raids");
+        assert_eq!(between_raids.avg_gap, time::Duration::minutes(10), "Average gap should be 10 minutes");
+        assert_eq!(between_raids.shortest_gap, time::Duration::minutes(5), "Shortest gap should be 5 minutes");
+        assert_eq!(between_raids.longest_gap, time::Duration::minutes(15), "Longest gap should be 15 minutes");
+
+        pool.close().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_calculate_time_between_raids_with_active_raid() -> Result<(), sqlx::Error> {
+        let pool = setup_test_db().await?;
+        let base_time = OffsetDateTime::now_utc();
+
+        let session_id = create_session(&pool, SessionType::Stream, None, Some(base_time)).await?;
+
+        // Raid 1: Completed
+        let raid1 = create_raid(&pool, session_id, "Customs", CharacterType::PMC, GameMode::PVP, Some(base_time)).await?;
+        end_raid(&pool, raid1, Some(base_time + time::Duration::minutes(20)), None).await?;
+
+        // Raid 2: Completed
+        let raid2 = create_raid(&pool, session_id, "Woods", CharacterType::PMC, GameMode::PVE, Some(base_time + time::Duration::minutes(30))).await?;
+        end_raid(&pool, raid2, Some(base_time + time::Duration::minutes(50)), None).await?;
+
+        // Raid 3: Active (no ended_at)
+        let _raid3 = create_raid(&pool, session_id, "Factory", CharacterType::PMC, GameMode::PVP, Some(base_time + time::Duration::minutes(60))).await?;
+        // Don't end this raid - it's still active
+
+        let between_raids = calculate_time_between_raids_for_session(&pool, session_id).await?;
+
+        // Should only count gap between raid1 and raid2
+        // Gap: 30min - 20min = 10 minutes
+        // raid3 is ignored because it hasn't ended yet
+        assert_eq!(between_raids.gap_count, 1, "Should have 1 gap (raid3 is active, no gap calculated)");
+        assert_eq!(between_raids.avg_gap, time::Duration::minutes(10));
+        assert_eq!(between_raids.shortest_gap, time::Duration::minutes(10));
+        assert_eq!(between_raids.longest_gap, time::Duration::minutes(10));
+
+        pool.close().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_calculate_time_between_raids_edge_cases() -> Result<(), sqlx::Error> {
+        let pool = setup_test_db().await?;
+        let base_time = OffsetDateTime::now_utc();
+
+        // Test Case 1: No raids
+        let session_no_raids = create_session(&pool, SessionType::Stream, None, Some(base_time)).await?;
+        let result_no_raids = calculate_time_between_raids_for_session(&pool, session_no_raids).await?;
+        assert_eq!(result_no_raids.gap_count, 0, "No raids should have 0 gaps");
+        assert_eq!(result_no_raids.avg_gap, time::Duration::ZERO);
+        assert_eq!(result_no_raids.shortest_gap, time::Duration::ZERO);
+        assert_eq!(result_no_raids.longest_gap, time::Duration::ZERO);
+
+        // Test Case 2: Only 1 raid
+        let session_one_raid = create_session(&pool, SessionType::Stream, None, Some(base_time + time::Duration::hours(1))).await?;
+        let raid1 = create_raid(&pool, session_one_raid, "Customs", CharacterType::PMC, GameMode::PVP, Some(base_time + time::Duration::hours(1))).await?;
+        end_raid(&pool, raid1, Some(base_time + time::Duration::hours(1) + time::Duration::minutes(20)), None).await?;
+
+        let result_one_raid = calculate_time_between_raids_for_session(&pool, session_one_raid).await?;
+        assert_eq!(result_one_raid.gap_count, 0, "One raid should have 0 gaps");
+        assert_eq!(result_one_raid.avg_gap, time::Duration::ZERO);
+
+        // Test Case 3: All raids are active (none have ended_at)
+        let session_all_active = create_session(&pool, SessionType::Stream, None, Some(base_time + time::Duration::hours(2))).await?;
+        let _raid_active1 = create_raid(&pool, session_all_active, "Factory", CharacterType::PMC, GameMode::PVP, Some(base_time + time::Duration::hours(2))).await?;
+        let _raid_active2 = create_raid(&pool, session_all_active, "Woods", CharacterType::PMC, GameMode::PVE, Some(base_time + time::Duration::hours(2) + time::Duration::minutes(30))).await?;
+
+        let result_all_active = calculate_time_between_raids_for_session(&pool, session_all_active).await?;
+        assert_eq!(result_all_active.gap_count, 0, "All active raids should have 0 gaps");
+
+        pool.close().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_calculate_time_between_raids_global() -> Result<(), sqlx::Error> {
+        let pool = setup_test_db().await?;
+        let base_time = OffsetDateTime::now_utc();
+
+        // Session 1: 2 raids, 1 gap (5 min)
+        let s1 = create_session(&pool, SessionType::Stream, None, Some(base_time)).await?;
+        let s1r1 = create_raid(&pool, s1, "Customs", CharacterType::PMC, GameMode::PVP, Some(base_time)).await?;
+        end_raid(&pool, s1r1, Some(base_time + time::Duration::minutes(10)), None).await?;
+        let s1r2 = create_raid(&pool, s1, "Woods", CharacterType::PMC, GameMode::PVE, Some(base_time + time::Duration::minutes(15))).await?;
+        end_raid(&pool, s1r2, Some(base_time + time::Duration::minutes(30)), None).await?;
+
+        // Session 2: 3 raids, 2 gaps (10 min, 20 min)
+        let s2 = create_session(&pool, SessionType::Stream, None, Some(base_time + time::Duration::hours(1))).await?;
+        let s2r1 = create_raid(&pool, s2, "Factory", CharacterType::PMC, GameMode::PVP, Some(base_time + time::Duration::hours(1))).await?;
+        end_raid(&pool, s2r1, Some(base_time + time::Duration::hours(1) + time::Duration::minutes(15)), None).await?;
+        let s2r2 = create_raid(&pool, s2, "Shoreline", CharacterType::PMC, GameMode::PVP, Some(base_time + time::Duration::hours(1) + time::Duration::minutes(25))).await?;
+        end_raid(&pool, s2r2, Some(base_time + time::Duration::hours(1) + time::Duration::minutes(40)), None).await?;
+        let s2r3 = create_raid(&pool, s2, "Reserve", CharacterType::PMC, GameMode::PVP, Some(base_time + time::Duration::hours(1) + time::Duration::minutes(60))).await?;
+        end_raid(&pool, s2r3, Some(base_time + time::Duration::hours(1) + time::Duration::minutes(75)), None).await?;
+
+        // Global calculation across both sessions
+        let global = calculate_time_between_raids_global(&pool).await?;
+
+        // Total gaps: 5min (s1), 10min (s2), 20min (s2) = 3 gaps
+        // Average: (5 + 10 + 20) / 3 = 11.67 minutes ≈ 11 min 40 sec
+        assert_eq!(global.gap_count, 3, "Should have 3 gaps total across both sessions");
+        assert_eq!(global.avg_gap, time::Duration::minutes(11) + time::Duration::seconds(40), "Average should be ~11m 40s");
+        assert_eq!(global.shortest_gap, time::Duration::minutes(5), "Shortest gap from session 1");
+        assert_eq!(global.longest_gap, time::Duration::minutes(20), "Longest gap from session 2");
+
+        pool.close().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_calculate_time_between_raids_negative_gap() -> Result<(), sqlx::Error> {
+        let pool = setup_test_db().await?;
+        let base_time = OffsetDateTime::now_utc();
+
+        let session_id = create_session(&pool, SessionType::Stream, None, Some(base_time)).await?;
+
+        // Raid 1: Ends at 20 min
+        let raid1 = create_raid(&pool, session_id, "Customs", CharacterType::PMC, GameMode::PVP, Some(base_time)).await?;
+        end_raid(&pool, raid1, Some(base_time + time::Duration::minutes(20)), None).await?;
+
+        // Raid 2: Starts BEFORE raid1 ends (data error scenario, or overlapping raid entries)
+        // This should be skipped or handled gracefully
+        let raid2 = create_raid(&pool, session_id, "Woods", CharacterType::PMC, GameMode::PVE, Some(base_time + time::Duration::minutes(15))).await?;
+        end_raid(&pool, raid2, Some(base_time + time::Duration::minutes(35)), None).await?;
+
+        // Raid 3: Normal gap
+        let raid3 = create_raid(&pool, session_id, "Factory", CharacterType::PMC, GameMode::PVP, Some(base_time + time::Duration::minutes(40))).await?;
+        end_raid(&pool, raid3, Some(base_time + time::Duration::minutes(50)), None).await?;
+
+        let between_raids = calculate_time_between_raids_for_session(&pool, session_id).await?;
+
+        // Should skip negative gap and only count valid positive gap (35min -> 40min = 5 min)
+        assert_eq!(between_raids.gap_count, 1, "Should skip negative/overlapping gap");
+        assert_eq!(between_raids.avg_gap, time::Duration::minutes(5));
 
         pool.close().await;
         Ok(())

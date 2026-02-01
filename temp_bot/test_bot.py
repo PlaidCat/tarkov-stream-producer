@@ -20,7 +20,8 @@ def mock_env():
         'TWITCH_CHANNEL': 'test_channel',
         'TWITCH_CLIENT_ID': 'test_client_id',
         'TWITCH_CLIENT_SECRET': 'test_client_secret',
-        'TWITCH_BOT_ID': '123456789'
+        'TWITCH_BOT_ID': '123456789',
+        'TWITCH_BOT_USERNAME': 'test_bot'
     }):
         yield
 

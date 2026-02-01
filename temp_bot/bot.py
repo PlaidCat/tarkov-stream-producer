@@ -12,6 +12,7 @@ CHANNEL = os.getenv('TWITCH_CHANNEL')
 CLIENT_ID = os.getenv('TWITCH_CLIENT_ID')
 CLIENT_SECRET = os.getenv('TWITCH_CLIENT_SECRET')
 BOT_ID = os.getenv('TWITCH_BOT_ID')
+BOT_USERNAME = os.getenv('TWITCH_BOT_USERNAME', 'Bot')
 
 if not TOKEN or not CHANNEL or 'YOUR_' in TOKEN or 'YOUR_' in CHANNEL:
     print("Error: Environment variables not set properly.")
@@ -42,7 +43,7 @@ class Bot(commands.Bot):
         super().__init__(**args)
 
     async def event_ready(self):
-        print(f'Logged in as | {self.nick}')
+        print(f'Logged in as | {BOT_USERNAME}')
         print(f'Connected to channel: {CHANNEL}')
 
     async def event_command_error(self, context, error):

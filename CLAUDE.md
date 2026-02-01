@@ -14,6 +14,33 @@ analysis using OCR/vision.
 Currently working on Phase 2a-Extended (analytics and time tracking). Web API (Phase 2b),
 OBS integration, and automated screen analysis are planned future phases.
 
+## CRITICAL: Security & Streaming Protection (HIGHEST PRIORITY)
+
+**The user may stream their screen at any time. Credentials and secrets must NEVER be visible.**
+
+### Credential Protection Rules
+- **NEVER display the contents of credential files** in terminal output or tool results
+- **NEVER use `cat`, `Read`, or any tool that displays credential file contents**
+- **Location references ONLY**: May mention that credentials exist at `./temp_bot/.env` or similar paths
+- **Content is FORBIDDEN**: Never show tokens, passwords, API keys, client secrets, or any credential values
+
+### Files Containing Credentials (Reference Location Only)
+- `./temp_bot/.env` - Twitch bot credentials (OAuth token, client ID, client secret, bot ID)
+- Any file matching patterns: `*.env`, `*.key`, `*.pem`, `*.secret`, `credentials.*`
+- Database connection strings with passwords
+
+### Acceptable Actions
+- ✅ Mention file paths: "Update your OAuth token in `./temp_bot/.env`"
+- ✅ Describe structure: "The .env file needs `TWITCH_TOKEN` and `CLIENT_SECRET` fields"
+- ✅ Check file existence: `test -f ./temp_bot/.env && echo "exists"`
+
+### Forbidden Actions
+- ❌ Reading credential files: `cat .env`, `Read tool on .env`
+- ❌ Displaying secrets in output: `echo $TWITCH_TOKEN`
+- ❌ Showing redacted credentials: Even `oauth:xxxx...` patterns can leak information
+
+**Violation of these rules could expose credentials on stream. This is the HIGHEST PRIORITY rule.**
+
 ## Hardware Environment
 
 ### Dev/Training System (Arch Linux)

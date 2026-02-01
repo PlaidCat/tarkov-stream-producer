@@ -11,10 +11,17 @@ TOKEN = os.getenv('TWITCH_TOKEN')
 CHANNEL = os.getenv('TWITCH_CHANNEL')
 CLIENT_ID = os.getenv('TWITCH_CLIENT_ID')
 CLIENT_SECRET = os.getenv('TWITCH_CLIENT_SECRET')
+BOT_ID = os.getenv('TWITCH_BOT_ID')
 
 if not TOKEN or not CHANNEL or 'YOUR_' in TOKEN or 'YOUR_' in CHANNEL:
     print("Error: Environment variables not set properly.")
     print("Please create a .env file based on .env.example and set TWITCH_TOKEN and TWITCH_CHANNEL.")
+    sys.exit(1)
+
+# Validate bot_id is set
+if not BOT_ID:
+    print("Error: TWITCH_BOT_ID not set in .env")
+    print("Run 'python get_bot_id.py' to fetch your bot ID.")
     sys.exit(1)
 
 class Bot(commands.Bot):
@@ -23,7 +30,8 @@ class Bot(commands.Bot):
         args = {
             'token': TOKEN,
             'prefix': '!',
-            'initial_channels': [CHANNEL]
+            'initial_channels': [CHANNEL],
+            'bot_id': BOT_ID
         }
         # Add optional client credentials if provided
         if CLIENT_ID:
@@ -36,6 +44,16 @@ class Bot(commands.Bot):
     async def event_ready(self):
         print(f'Logged in as | {self.nick}')
         print(f'Connected to channel: {CHANNEL}')
+
+    async def event_command_error(self, context, error):
+        """Handle command errors, including cooldowns"""
+        if isinstance(error, commands.CommandOnCooldown):
+            # Silently ignore cooldown errors to prevent chat spam
+            # To notify users instead, uncomment: await context.send(f"⏱️ Command on cooldown ({error.retry_after:.0f}s)")
+            pass
+        else:
+            # Log other errors
+            print(f"Command error: {error}")
 
     def _read_response(self, filename):
         """Helper to read text from a file in the same directory."""
@@ -53,22 +71,27 @@ class Bot(commands.Bot):
             return "Error reading command file."
 
     @commands.command()
+    @commands.cooldown(rate=1, per=30)
     async def rules(self, ctx: commands.Context):
         response = self._read_response('rules.txt')
         await ctx.send(response)
 
     @commands.command()
+    @commands.cooldown(rate=1, per=30)
     async def shopping(self, ctx: commands.Context):
         response = self._read_response('shopping.txt')
         await ctx.send(response)
 
     @commands.command()
-    async def discord(self, ctx: commands.Context):
-        await ctx.send("Join our Discord here: https://discord.gg/example")
+    @commands.cooldown(rate=1, per=30)
+    async def tarkov_pve(self, ctx: commands.Context):
+        response = self._read_response('tarkov_pve.txt')
+        await ctx.send(response)
 
     @commands.command()
+    @commands.cooldown(rate=1, per=30)
     async def commands(self, ctx: commands.Context):
-        await ctx.send("Available commands: !rules, !discord, !shopping")
+        await ctx.send("Available commands: !rules, !shopping, !tarkov_pve")
 
 if __name__ == "__main__":
     print("Starting bot...")

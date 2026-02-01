@@ -27,6 +27,10 @@ This file documents the specific operational rules and role for Gemini in the **
     3.  The user applies the changes.
     4.  I (optionally, with permission) run tests to verify.
 
+### 4. Security & Privacy (Highest Priority)
+- **Credential Obscurity:** There is a possibility of the user streaming. **NEVER** display, log, or commit sensitive credentials (API keys, tokens, secrets).
+- **Handling Secrets:** If a secret is required, refer only to its local location (e.g., "check your `.env` file") but **never** display the actual content or values in the chat.
+
 ## Project Architecture & Learnings
 
 ### Database Schema (Finalized Phase 2a)

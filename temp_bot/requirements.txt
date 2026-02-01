@@ -1,2 +1,5 @@
 twitchio
 python-dotenv
+requests
+pytest
+pytest-asyncio

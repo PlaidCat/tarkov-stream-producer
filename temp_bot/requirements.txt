@@ -1,4 +1,5 @@
 twitchio
+twitchio[starlette]
 python-dotenv
 requests
 pytest

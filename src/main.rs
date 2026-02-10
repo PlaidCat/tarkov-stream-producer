@@ -1,12 +1,16 @@
+mod api;
 mod db;
 mod models;
 mod stats;
 
-
 use tracing::{info};
 use tracing_subscriber::{self, EnvFilter};
 
-fn main() {
+use crate::api::state::AppState;
+use crate::api::routes::api_router;
+
+#[tokio::main]
+async fn main() {
     // If the RUST_LOG is not set set the filter to INFO
     let filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new("info"));
@@ -17,19 +21,33 @@ fn main() {
 
     info!("Logger initialized and application starting!");
     println!("Hello, world!");
-}
 
-fn add_two(a: i32) -> i32 {
-    a + 2
-}
+    // Connect to SQLite database (create file if it doesn't exist)
+    let database_url = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "sqlite:dev.db?mode=rwc".to_string());
+    let pool = db::create_pool(&database_url)
+        .await
+        .expect("Failed to create database pool");
 
-#[cfg(test)]
-mod test {
-    use super::*; // Import everything from the outerscope
+    // Apply any pending database migrations
+    db::run_migrations(&pool)
+        .await
+        .expect("Failed to run database migrations");
 
-    #[test]
-    fn it_works() {
-        assert_eq!(add_two(2), 4);
-        assert_ne!(add_two(3), 4);
-    }
+    info!("Database Initialized");
+
+    // Build the router and attach the database pool
+    let app = api_router().with_state(AppState::new(pool));
+
+    // Start listening on localhost port 3000
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+        .await
+        .expect("Failed to bind to port 3000");
+
+    info!("Server listening on http://127.0.0.1:3000");
+
+    // This line blocks forever, handleing incoming requests
+    axum::serve(listener, app)
+        .await
+        .expect("Server Error");
 }

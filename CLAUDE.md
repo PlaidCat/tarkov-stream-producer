@@ -41,6 +41,10 @@ OBS integration, and automated screen analysis are planned future phases.
 
 **Violation of these rules could expose credentials on stream. This is the HIGHEST PRIORITY rule.**
 
+### Dangerous Shell Commands
+- **NEVER run `rm` command** - User will handle all file/directory deletion themselves
+- **NEVER run destructive commands** without explicit user request (e.g., `git reset --hard`, `git clean -f`)
+
 ## Hardware Environment
 
 ### Dev/Training System (Arch Linux)
@@ -174,7 +178,7 @@ Database Migrations (Phase 2a) ✅
   to allow discovery of new values without schema migrations
 - **Started:** 2025-12-26
 
-Session Time Tracking (Phase 2a-Extended) - PARTIALLY COMPLETE
+Session Time Tracking (Phase 2a-Extended) ✅ COMPLETE
 
 - **Session overhead time**: Gap between session start and first raid start
 - Tracks "stream setup", "just chatting", or menu time before first raid begins
@@ -189,9 +193,19 @@ Session Time Tracking (Phase 2a-Extended) - PARTIALLY COMPLETE
   - Tracks total session count
   - Tracks most recent session delay separately
   - Full test coverage with controlled timestamps
-- **Remaining:** `calculate_time_in_state()` implementation and session comparison queries
-- Useful metric: "How much time do I waste before actually starting raids?"
-- Aggregates across all sessions for historical analysis
+- **Completed (2026-01-20):** `calculate_time_in_state()` implementation
+  - HashMap-based accumulation for time spent in each state
+  - Handles multiple visits to same state using Entry API
+  - Full test with realistic 7-state raid flow
+- **Completed (2026-01-24):** Session comparison queries
+  - `compare_session_to_mode_global()` - "this stream vs all-time" stats
+  - `get_mode_stats_for_session()` - PVE vs PVP filtering
+  - Calculate K/D, survival rate, raid counts
+- **Completed (2026-01-26):** `calculate_time_between_raids()` implementation
+  - Tracks average stash time between raids
+  - Handles active raids, session boundaries, negative gaps
+  - Global and per-session statistics
+- **Phase 2a-Extended COMPLETE:** 2026-01-26
 
 **Testing Pattern Learned:**
 - Use optional timestamp parameters (`Option<OffsetDateTime>`) for CRUD functions
@@ -199,6 +213,19 @@ Session Time Tracking (Phase 2a-Extended) - PARTIALLY COMPLETE
 - Production code passes `None` to use real timestamps
 - Tests pass `Some(timestamp)` for deterministic, fast tests
 - No need for raw SQL in tests - clean API for both production and testing
+
+REST API Development (Phase 2b) - IN PROGRESS
+
+- **Framework choice:** Axum 0.7 selected for REST API
+- **Development approach:** Test-Driven Development (TDD) with Red-Green-Refactor cycle
+- **Started:** 2026-02-03
+- **Current status:** Phase 2b.1 (Core Infrastructure) in progress
+- **Completed (2026-02-03):**
+  - Step 1.1: AppError enum with variants (NotFound, Conflict, ValidationError, BadRequest, DatabaseError)
+  - Step 1.2: status_code() method for HTTP status mapping
+  - Step 1.3: json_body() method returning `{"error": "message", "type": "error_type"}`
+  - Step 1.4: IntoResponse trait implementation for automatic error conversion
+- **Next:** Step 1.5 (AppState struct), then health endpoint (Steps 1.6-1.9)
 
 Planned Architecture (Future Phases)
 
@@ -289,6 +316,33 @@ Phase 5: Chat Bot Integration (Deferred)
 - Always read the actual file to verify line numbers (git diff may not reflect current state)
 - Get explicit confirmation before making corrections
 
+### Rust Implementation Blocks (2026-02-03)
+- **`impl` keyword**: Stands for "implementation" - defines methods for a type
+- **Two forms**:
+  1. `impl TypeName { }` - Add methods to your own types
+  2. `impl TraitName for TypeName { }` - Implement a trait (interface) for a type
+- **Instance methods**: Use `&self` parameter (borrows the instance)
+- **Associated functions**: No `self` parameter (like static methods)
+- **Example**:
+  ```rust
+  impl AppError {
+      pub fn status_code(&self) -> http::StatusCode { /* ... */ }
+  }
+  ```
+
+### Fully Qualified Paths vs Imports (2026-02-03)
+- **Fully qualified paths**: `impl axum::response::IntoResponse for AppError`
+  - Avoids unused import warnings
+  - Makes dependencies explicit at use site
+  - Longer but clear
+- **With imports**: Add `use axum::response::IntoResponse;` at top, then use short form `impl IntoResponse for AppError`
+  - Cleaner code if type is used multiple times
+  - Can trigger "unused import" if only used in impl signature
+- **Choice**: Either approach is valid - pick based on:
+  - One usage → fully qualified path (avoids warning)
+  - Multiple usages → import at top (cleaner code)
+- **Test imports**: Can import inside test module or function scope to avoid module-level unused warnings
+
 ## User Preferences
 
 The user handles 90% of the coding themselves. When working with this user:
@@ -305,3 +359,4 @@ The user handles 90% of the coding themselves. When working with this user:
 ### Time Tracking
 - Use `date +"%Y-%m-%d %H:%M"` to get current timestamp for time tracking entries
 - Update `.time_tracking.md` as tasks progress to maintain accurate time records
+- **When the user begins working on a task**, immediately log the start time in `.time_tracking.md` before providing recommendations

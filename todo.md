@@ -92,32 +92,33 @@ This document outlines the development plan for the Tarkov Stream Producer appli
   - test_calculate_time_between_raids_global() - cross-session aggregation
   - test_calculate_time_between_raids_negative_gap() - overlapping data handling
 
-### Phase 2b: REST API with Web UI (14-18 hours total)
+### Phase 2b: REST API with Web UI (17-23 hours total, revised from 14-18h)
 **Note:** Axum framework with Askama templates for manual control and web-based kill entry.
-**See:** `docs/phase_2b_rest_api_plan.md` for complete implementation details.
+**See:** `docs/phase_2b_tdd_plan.md` for TDD implementation steps.
+**Reference:** `docs/phase_2b_rest_api_plan.md` for API design details.
 
-#### Phase 2b.1: Core Infrastructure (2-3 hours)
-- [ ] Add dependencies to Cargo.toml (0.25h)
-  - axum, tower, tower-http, serde, serde_json, askama, askama_axum, validator, http
-- [ ] Create module structure: src/api/, src/web/ (0.25h)
-- [ ] Implement src/api/state.rs - AppState wrapper for SqlitePool (0.5h)
-- [ ] Implement src/api/error.rs - AppError with HTTP status mapping (1h)
-  - DatabaseError (500), NotFound (404), Conflict (409), ValidationError (422), BadRequest (400)
-- [ ] Update src/main.rs - Axum server setup, router mounting (1h)
-- [ ] Implement GET /health endpoint (0.25h)
-- [ ] Test: `cargo run`, curl health check (0.25h)
+#### Phase 2b.1: Core Infrastructure - TDD (2-3 hours)
+- [x] Add dependencies to Cargo.toml (0.25h) - COMPLETED
+- [x] Step 1.1: Test AppError variants exist → implement enum (0.25h) - COMPLETED 2026-02-03
+- [x] Step 1.2: Test status code mapping → implement method (0.25h) - COMPLETED 2026-02-03
+- [x] Step 1.3: Test JSON body format → implement method (0.25h) - COMPLETED 2026-02-03
+- [x] Step 1.4: Test IntoResponse → implement trait (0.25h) - COMPLETED 2026-02-03
+- [x] Step 1.5: Test AppState construction → implement struct (0.25h) - COMPLETED 2026-02-08
+- [x] Step 1.6: Test health returns 200 → implement handler (0.25h) - COMPLETED 2026-02-08
+- [x] Step 1.7: Test health body format → verify JSON (0.15h) - COMPLETED 2026-02-08
+- [x] Step 1.8: Test router mounts health → implement api_router (0.25h) - COMPLETED 2026-02-09
+- [x] Step 1.9: Integration checkpoint - curl /health (0.25h) - COMPLETED 2026-02-09
 
-#### Phase 2b.2: Session Endpoints (1.5 hours)
-- [ ] Define session DTOs in src/api/dto.rs (0.25h)
-  - CreateSessionRequest, SessionResponse
-- [ ] Implement src/api/handlers/session.rs (1h)
-  - POST /api/session - create session
-  - GET /api/session/current - get active session
-  - POST /api/session/end - end session
-- [ ] Wire routes in src/api/routes.rs (0.25h)
-- [ ] Test with curl: full session lifecycle (0.25h)
+#### Phase 2b.2: Session Endpoints - TDD (2-2.5 hours, revised from 1.5h - first Axum handlers)
+- [ ] Step 2.1: Test CreateSessionRequest deserializes → implement DTO (0.25h)
+- [ ] Step 2.2: Test POST /api/session creates session → implement handler (0.25h)
+- [ ] Step 2.3: Test GET /api/session/current returns 404 when none (0.15h)
+- [ ] Step 2.4: Test GET /api/session/current returns session → implement handler (0.25h)
+- [ ] Step 2.5: Test POST /api/session/end ends session → implement handler (0.25h)
+- [ ] Step 2.6: Test POST /api/session/end returns 404 when none (0.15h)
+- [ ] Wire session routes in src/api/routes.rs (0.15h)
 
-#### Phase 2b.3: Raid Endpoints (2.5 hours)
+#### Phase 2b.3: Raid Endpoints (3-4 hours, revised from 2.5h - complex state logic)
 - [ ] Define raid DTOs in src/api/dto.rs (0.5h)
   - CreateRaidRequest, StateTransitionRequest, EndRaidRequest, RaidResponse
 - [ ] Implement src/api/handlers/raid.rs (1.5h)
@@ -138,7 +139,7 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 - [ ] Wire routes with path parameters (0.25h)
 - [ ] Test: single kill, batch kills, retrieve kills (0.25h)
 
-#### Phase 2b.5: Stats Endpoints (1.5 hours)
+#### Phase 2b.5: Stats Endpoints (2-2.5 hours, revised from 1.5h - stats logic takes longer)
 - [ ] Add aggregation queries to src/db.rs (0.5h)
   - Session stats (total raids, survival rate, K/D)
   - Raid details with state durations
@@ -149,7 +150,7 @@ This document outlines the development plan for the Tarkov Stream Producer appli
   - GET /api/stats/raid/:raid_id - individual raid details
 - [ ] Test: verify calculations match expected values (0.25h)
 
-#### Phase 2b.6: Web UI (3-4 hours)
+#### Phase 2b.6: Web UI (4-6 hours, revised from 3-4h - new territory with Askama)
 - [ ] Set up src/web/templates/ directory, configure Askama (0.25h)
 - [ ] Create layout.html base template with navigation (0.5h)
 - [ ] Implement dashboard (index.html) (1h)
@@ -164,7 +165,7 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 - [ ] Add basic CSS styling for usability (0.5h)
 - [ ] Test: manual workflow in browser (0.5h)
 
-#### Phase 2b.7: Integration Testing (1-2 hours)
+#### Phase 2b.7: Integration Testing (1.5-2 hours)
 - [ ] Write integration tests for endpoint behavior (1h)
   - Test full raid lifecycle with state transitions
   - Test batch kill creation
@@ -173,7 +174,7 @@ This document outlines the development plan for the Tarkov Stream Producer appli
   - No active session, duplicate raid, invalid raid_id
 - [ ] Run cargo tarpaulin, verify 50% coverage target (0.25h)
 
-#### Phase 2b.8: Documentation (1 hour)
+#### Phase 2b.8: Documentation (0.75-1 hour)
 - [ ] Update CLAUDE.md with API usage examples (0.25h)
 - [ ] Document Stream Deck button configuration (0.25h)
   - Example HTTP request payloads for common operations

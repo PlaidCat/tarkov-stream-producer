@@ -1,25 +1,28 @@
 use time::OffsetDateTime;
+use serde::{Deserialize, Serialize};
 
 // ============================================================
 // Enums
 // ============================================================
-
-#[derive(Debug, Clone, PartialEq, Eq, sqlx::Type)]
+#[derive(Debug, Clone, PartialEq, Eq, sqlx::Type, Serialize, Deserialize)]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")] // Ensure serde matches sqlx's lowercase
 pub enum CharacterType {
     PMC,
     Scav,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, sqlx::Type)]
+#[derive(Debug, Clone, PartialEq, Eq, sqlx::Type, Serialize, Deserialize)]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")] // Ensure serde matches sqlx's lowercase
 pub enum GameMode {
     PVE,
     PVP,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, sqlx::Type)]
+#[derive(Debug, Clone, PartialEq, Eq, sqlx::Type, Serialize, Deserialize)]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")] // Ensure serde matches sqlx's lowercase
 pub enum SessionType {
     Stream,
     Practice,

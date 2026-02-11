@@ -109,8 +109,14 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 - [x] Step 1.8: Test router mounts health → implement api_router (0.25h) - COMPLETED 2026-02-09
 - [x] Step 1.9: Integration checkpoint - curl /health (0.25h) - COMPLETED 2026-02-09
 
+#### Phase 2b.1-Refine: Infrastructure Refinement (High Priority)
+- [x] Implement robust health check (ping DB) (0.25h) - See docs/session_feedback_2026_02_09.md
+- [x] Move database URL to environment variable (0.25h)
+- [x] Add TraceLayer middleware for request logging (0.25h)
+- [x] Cleanup boilerplate (remove add_two) (0.1h)
+
 #### Phase 2b.2: Session Endpoints - TDD (2-2.5 hours, revised from 1.5h - first Axum handlers)
-- [ ] Step 2.1: Test CreateSessionRequest deserializes → implement DTO (0.25h)
+- [x] Step 2.1: Test CreateSessionRequest deserializes → implement DTO (0.25h)
 - [ ] Step 2.2: Test POST /api/session creates session → implement handler (0.25h)
 - [ ] Step 2.3: Test GET /api/session/current returns 404 when none (0.15h)
 - [ ] Step 2.4: Test GET /api/session/current returns session → implement handler (0.25h)

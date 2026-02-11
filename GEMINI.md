@@ -43,9 +43,9 @@ This file documents the specific operational rules and role for Gemini in the **
 - **Time Estimation:** Revised Phase 2a estimates upward (~7-10h total). Rust's type system (enums, `FromRow`) and async DB testing require more boilerplate than initially anticipated.
 
 ## Current Context
-- **Phase:** Phase 2a-Extended (Analytics & Time Tracking).
-- **Immediate Goal:** Implement `calculate_time_in_state()` and session comparison queries.
-- **Project State:** Core CRUD operations for Sessions, Raids, Transitions, and Kills are complete and tested. Focus is now on deriving insights from the tracked data.
+- **Phase:** Phase 2b (REST API with Web UI).
+- **Immediate Goal:** Phase 2b.1-Refine (Infrastructure Refinement) & Phase 2b.2 (Session Endpoints).
+- **Project State:** Core Analytics (Phase 2a-Extended) complete. Basic Axum server and Health endpoint (Phase 2b.1) implemented and working. Focus is now on robustifying infrastructure before building feature endpoints.
 
 ## Technical Learnings
 - **SQLx Compile-Time Checks:** `sqlx::query!` macros require a live database connection (via `DATABASE_URL`) at compile time to verify SQL syntax and types.

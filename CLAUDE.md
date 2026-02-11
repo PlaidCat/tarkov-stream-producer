@@ -216,16 +216,23 @@ Session Time Tracking (Phase 2a-Extended) ✅ COMPLETE
 
 REST API Development (Phase 2b) - IN PROGRESS
 
-- **Framework choice:** Axum 0.7 selected for REST API
+- **Framework choice:** Axum 0.8 selected for REST API
 - **Development approach:** Test-Driven Development (TDD) with Red-Green-Refactor cycle
 - **Started:** 2026-02-03
-- **Current status:** Phase 2b.1 (Core Infrastructure) in progress
+- **Current status:** Phase 2b.1 (Core Infrastructure) ✅ COMPLETE, Phase 2b.1-Refine next
 - **Completed (2026-02-03):**
   - Step 1.1: AppError enum with variants (NotFound, Conflict, ValidationError, BadRequest, DatabaseError)
   - Step 1.2: status_code() method for HTTP status mapping
   - Step 1.3: json_body() method returning `{"error": "message", "type": "error_type"}`
   - Step 1.4: IntoResponse trait implementation for automatic error conversion
-- **Next:** Step 1.5 (AppState struct), then health endpoint (Steps 1.6-1.9)
+- **Completed (2026-02-08):**
+  - Step 1.5: AppState struct with SqlitePool + Clone derive
+  - Step 1.6: health_check() handler with State extractor
+  - Step 1.7: Health response body format verification
+- **Completed (2026-02-09):**
+  - Step 1.8: api_router() in src/api/routes.rs mounting health endpoint
+  - Step 1.9: Integration checkpoint — main.rs wired as async server, curl /health verified
+- **Next:** Phase 2b.1-Refine (health ping, env var config, TraceLayer, cleanup), then Phase 2b.2 (Session Endpoints)
 
 Planned Architecture (Future Phases)
 
@@ -330,6 +337,29 @@ Phase 5: Chat Bot Integration (Deferred)
   }
   ```
 
+### Axum REST API Patterns (2026-02-09)
+- **Router**: Traffic director that maps URL paths + HTTP methods to handler functions
+  - `.route("/health", axum::routing::get(health_check))` — maps GET /health to handler
+  - `Router<AppState>` — router that needs state before it can serve (incomplete)
+  - `Router<()>` — fully wired router, ready to serve
+  - `.with_state(AppState::new(pool))` fills the requirement: `Router<AppState>` → `Router<()>`
+- **State injection**: `AppState` wraps `SqlitePool`, attached via `.with_state()`, automatically provided to any handler that uses `State(state): State<AppState>`
+- **Testing without a server**: `tower::ServiceExt` provides `.oneshot()` for in-process HTTP testing
+  - Requires `tower = { version = "0.5", features = ["util"] }` — the `"util"` feature is needed
+  - Build fake requests with `Request::get("/path").body(Body::empty()).unwrap()`
+  - No network, no port binding — fast and reliable tests
+- **`#[tokio::main]`**: Required on `async fn main()` to set up the async runtime
+- **Server startup pattern**: `tokio::net::TcpListener::bind()` → `axum::serve(listener, app)`
+  - Bind to `127.0.0.1:3000` for localhost-only access (safe for streaming)
+
+### SQLx Compile-Time Query Checking (2026-02-09)
+- `sqlx::query!()` macro validates SQL against the database schema **at compile time**
+- Requires `DATABASE_URL` environment variable to be set, OR an offline cache in `.sqlx/`
+- **Development workflow**: `DATABASE_URL=sqlite://dev.db cargo run` (inline, per-command)
+- **Offline cache**: `DATABASE_URL=sqlite://dev.db cargo sqlx prepare` updates `.sqlx/` directory
+- `sqlite://` and `sqlite:` URL formats both work for SQLx
+- **Stale database**: If `dev.db` has tables but no `_sqlx_migrations` tracking table, migrations fail with "table already exists" — delete `dev.db` and let migrations recreate it
+
 ### Fully Qualified Paths vs Imports (2026-02-03)
 - **Fully qualified paths**: `impl axum::response::IntoResponse for AppError`
   - Avoids unused import warnings
@@ -345,10 +375,15 @@ Phase 5: Chat Bot Integration (Deferred)
 
 ## User Preferences
 
-The user handles 90% of the coding themselves. When working with this user:
+The user is a kernel engineer learning web/application development. TDD and REST APIs are new territory.
+When working with this user:
 - Always ask for confirmation before running shell commands
 - Provide code recommendations and suggestions
 - Focus on analysis, explanations, and providing code snippets for the user to implement
+- **Explain web/REST/TDD concepts** as they come up — don't assume familiarity
+- **Give refreshers on the "why"** — remind why we're doing a step, not just what to do
+- **Walk through implementation step-by-step** — don't dump full solutions; guide the user to write the code themselves
+- The user handles 90% of the coding themselves
 
 ### File Modification Permissions
 - **CLAUDE.md** - Claude may update with confirmation first

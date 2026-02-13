@@ -400,9 +400,8 @@ fn test_create_session_request_notes_optional() {
 ---
 
 ### Step 2.2: POST /api/session creates session
-**File:** `src/api/handlers/session.rs`
 
-**Test:**
+**Test (write first):**
 ```rust
 #[tokio::test]
 async fn test_create_session_success() {
@@ -423,9 +422,84 @@ async fn test_create_session_success() {
 }
 ```
 
+**What you'll see (Red):**
+- 404 Not Found because `/api/session` route doesn't exist yet
+- Also notice the Step 2.3 test moved to `session::tests` — good move
+
 ---
 
+**Now go Green. You need two things:**
+
+**1. The handler function**
+
+Add this to `src/api/handlers/sessions.rs`:
+
+```rust
+use axum::{extract::State, Json};
+use serde::Serialize;
+use crate::{api::state::AppState, db};
+
+#[derive(Serialize)]
+pub struct CreateSessionResponse {
+    pub session_id: i64,
+    pub session_type: String,
+    pub notes: Option<String>,
+}
+
+pub async fn create_session(
+    State(state): State<AppState>,
+    Json(payload): Json<CreateSessionRequest>,
+) -> (StatusCode, Json<CreateSessionResponse>) {
+    let session_id = db::create_session(&state.pool, payload.session_type, payload.notes, None)
+        .await
+        .expect("Failed to create session");
+
+    let response = CreateSessionResponse {
+        session_id,
+        session_type: payload.session_type.to_string(),
+        notes: payload.notes,
+    };
+
+    (StatusCode::CREATED, Json(response))
+}
+```
+
+**What's happening:**
+- `State(state)` — Axum extractor gets your `AppState` with the DB pool
+- `Json(payload)` — Axum automatically parses JSON request body into `CreateSessionRequest`
+- `db::create_session()` — calls your Phase 2a database function
+- Returns tuple: `(StatusCode::CREATED, Json(response))` — 201 status + JSON body
+
+---
+
+**2. Wire the route in `src/api/routes.rs`:**
+
+```rust
+use crate::api::handlers::sessions::create_session;
+
+pub fn api_router() -> Router<AppState> {
+    Router::new()
+        .route("/health", axum::routing::get(health_check))
+        .route("/api/session", axum::routing::post(create_session))
+        .layer(TraceLayer::new_for_http())
+}
+```
+
+**Key differences between POST and GET handlers:**
+- POST needs `Json(payload)` to parse request body
+- GET (for `/current`) needs **no body extractor** — just `State`
+
+---
+
+**Run the tests. You should see:**
+```bash
+cargo test test_create_session_success
+```
+
+**Expected:** Test passes with 201 Created status
+
 ### Step 2.3: GET /api/session/current returns 404 when none
+
 **Test:**
 ```rust
 #[tokio::test]
@@ -443,6 +517,63 @@ async fn test_get_current_session_none() {
 ```
 
 ---
+
+**Now go Green. You need:**
+
+**1. The handler function**
+
+Add `get_current_session` to `src/api/handlers/sessions.rs` alongside `create_session`:
+
+```rust
+use axum::{extract::State, Json};
+use crate::{api::state::AppState, db};
+
+pub async fn get_current_session(
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
+    let session = db::get_active_session(&state.pool)
+        .await
+        .map_err(crate::api::error::AppError::DatabaseError)?;
+
+    match session {
+        Some(s) => Ok(Json(serde_json::json!({
+            "session_id": s.session_id,
+            "session_type": s.session_type,
+            "started_at": s.started_at.to_string(),
+            "ended_at": s.ended_at.map(|t| t.to_string()),
+            "notes": s.notes,
+        }))),
+        None => Err(crate::api::error::AppError::NotFound(
+            "No active session".into()
+        )),
+    }
+}
+```
+
+**What's different from `create_session`:**
+- No `Json(req)` extractor — GET requests don't have a body to parse, so we only need `State`
+- `match session` — `get_active_session()` returns `Option<StreamSession>`. We use `match` to handle both cases:
+  - `Some(s)` → build the JSON response (200 OK, which is the default for `Json<>`)
+  - `None` → return `AppError::NotFound`, which your Phase 2b.1 error handling automatically converts to a 404 response
+- This is where Step 2.3 becomes real — once this route is wired up, the 404 comes from your `AppError::NotFound` instead of Axum's "no matching route"
+
+---
+
+**2. Wire the route in `src/api/routes.rs`:**
+
+```rust
+use crate::api::handlers::sessions::{create_session, get_current_session};
+
+pub fn api_router() -> Router<AppState> {
+    Router::new()
+        .route("/health", axum::routing::get(health_check))
+        .route("/api/session", axum::routing::post(create_session))
+        .route("/api/session/current", axum::routing::get(get_current_session))
+        .layer(TraceLayer::new_for_http())
+}
+```
+
+**Run the tests — both Step 2.3 and 2.4 should pass now.**
 
 ### Step 2.4: GET /api/session/current returns session
 **Test:**

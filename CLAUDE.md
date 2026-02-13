@@ -10,9 +10,9 @@ gameplay statistics and display them on stream. The project is in early developm
 (Phase 1) with plans to evolve from manual control via REST API to automated screen
 analysis using OCR/vision.
 
-**Current Status:** Phase 2a (Core) completed with 4-table database schema and CRUD operations.
-Currently working on Phase 2a-Extended (analytics and time tracking). Web API (Phase 2b),
-OBS integration, and automated screen analysis are planned future phases.
+**Current Status:** Phase 2b (REST API) in progress. Phase 2a (Core + Extended) complete with
+4-table schema, CRUD operations, and analytics. Phase 2b.1 (Core Infrastructure) complete.
+Phase 2b.2 (Session Endpoints) in progress — Steps 2.1–2.4 done, Steps 2.5–2.6 next.
 
 ## CRITICAL: Security & Streaming Protection (HIGHEST PRIORITY)
 
@@ -83,10 +83,20 @@ OBS integration, and automated screen analysis are planned future phases.
 
 tarkov_stream_producer/
 ├── src/
-│   ├── main.rs          # Entry point with tracing setup
+│   ├── main.rs          # Entry point with async server startup
 │   ├── models.rs        # Data structures (Session, Raid, Kill, enums)
 │   ├── db.rs            # Database CRUD operations and migrations
-│   └── stats.rs         # Analytics functions (in progress)
+│   ├── stats.rs         # Analytics functions (complete)
+│   └── api/
+│       ├── mod.rs       # Module declarations
+│       ├── dto.rs       # Request/response DTOs (CreateSessionRequest)
+│       ├── error.rs     # AppError enum with IntoResponse
+│       ├── state.rs     # AppState (wraps SqlitePool)
+│       ├── routes.rs    # api_router() mounting all routes
+│       └── handlers/
+│           ├── mod.rs       # Handler module declarations
+│           ├── health.rs    # GET /health endpoint
+│           └── session.rs   # Session CRUD endpoints (in progress)
 ├── migrations/
 │   └── 20251226000000_initial_schema.sql  # 4-table schema
 ├── .github/workflows/
@@ -232,7 +242,13 @@ REST API Development (Phase 2b) - IN PROGRESS
 - **Completed (2026-02-09):**
   - Step 1.8: api_router() in src/api/routes.rs mounting health endpoint
   - Step 1.9: Integration checkpoint — main.rs wired as async server, curl /health verified
-- **Next:** Phase 2b.1-Refine (health ping, env var config, TraceLayer, cleanup), then Phase 2b.2 (Session Endpoints)
+- **Completed (2026-02-10):**
+  - Step 2.1: CreateSessionRequest DTO in src/api/dto.rs with serde derives
+  - Step 2.2: POST /api/session → 201 Created with create_session handler
+  - Step 2.3: GET /api/session/current → 404 when no active session
+  - Step 2.4: GET /api/session/current → 200 with session JSON when active
+- **Prerequisite change:** Added `Serialize, Deserialize` + `#[serde(rename_all = "lowercase")]` to model enums (SessionType, CharacterType, GameMode) for JSON serialization through the API
+- **Next:** Steps 2.5-2.6 (POST /api/session/end), then Phase 2b.3 (Raid Endpoints)
 
 Planned Architecture (Future Phases)
 
@@ -340,6 +356,7 @@ Phase 5: Chat Bot Integration (Deferred)
 ### Axum REST API Patterns (2026-02-09)
 - **Router**: Traffic director that maps URL paths + HTTP methods to handler functions
   - `.route("/health", axum::routing::get(health_check))` — maps GET /health to handler
+  - Multiple `.route()` calls chain on one `Router::new()`, `.layer()` goes at end
   - `Router<AppState>` — router that needs state before it can serve (incomplete)
   - `Router<()>` — fully wired router, ready to serve
   - `.with_state(AppState::new(pool))` fills the requirement: `Router<AppState>` → `Router<()>`
@@ -351,6 +368,32 @@ Phase 5: Chat Bot Integration (Deferred)
 - **`#[tokio::main]`**: Required on `async fn main()` to set up the async runtime
 - **Server startup pattern**: `tokio::net::TcpListener::bind()` → `axum::serve(listener, app)`
   - Bind to `127.0.0.1:3000` for localhost-only access (safe for streaming)
+
+### Axum Handler Patterns (2026-02-10)
+- **Handler signatures vary by HTTP method and need:**
+  - POST with body: `async fn handler(State(state): State<AppState>, Json(req): Json<DtoType>) -> Result<...>`
+  - GET (no body): `async fn handler(State(state): State<AppState>) -> Result<...>`
+  - POST without body (action endpoints): `async fn handler(State(state): State<AppState>) -> Result<...>`
+- **Return types:**
+  - `(StatusCode::CREATED, Json(...))` — for POST that creates a resource (201)
+  - `Json(...)` — for GET returning data (200 is default)
+  - `Err(AppError::NotFound(...))` — leverages Phase 2b.1 error handling for automatic 404
+- **Extractor order matters**: `State` must come before `Json` in handler parameters
+- **`Json<T>` extractor**: Automatically deserializes request body; returns 400/422 if JSON is malformed
+- **`.map_err(AppError::DatabaseError)?`** — converts sqlx errors into AppError for automatic HTTP error responses
+
+### REST API Testing Patterns (2026-02-10)
+- **Test setup**: Use db layer directly (`db::create_session()`) to create preconditions before testing API endpoints
+- **POST with body**: Needs `.header("content-type", "application/json")` + `Body::from(json_string)`
+- **GET requests**: Use `Body::empty()` — no content-type header needed
+- **POST without body**: Use `Body::empty()` — for action endpoints like "end session"
+- **Body parsing**: `axum::body::to_bytes(response.into_body(), usize::MAX)` → `serde_json::from_slice(&body)`
+- **TDD "free pass" caveat**: A test for 404 on a non-existent route passes immediately (Axum default is 404 for unmatched routes). The test becomes meaningful once the route and handler exist — pair 404 tests with their positive counterpart
+
+### Serde + SQLx Enum Alignment (2026-02-10)
+- Model enums need both `sqlx::Type` and `Serialize, Deserialize` when used in API DTOs
+- `#[serde(rename_all = "lowercase")]` must match `#[sqlx(rename_all = "lowercase")]`
+- This ensures JSON values like `"stream"` round-trip correctly through both the API and database
 
 ### SQLx Compile-Time Query Checking (2026-02-09)
 - `sqlx::query!()` macro validates SQL against the database schema **at compile time**

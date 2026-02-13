@@ -1,6 +1,6 @@
 # Tarkov Stream Producer
 
-![Coverage](https://img.shields.io/badge/Coverage-92.54%25-green)
+![Coverage](https://img.shields.io/badge/Coverage-%25-red)
 
 A Rust application for tracking Escape from Tarkov statistics and providing a REST API for stream overlays and automation.
 

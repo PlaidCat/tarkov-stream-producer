@@ -70,6 +70,8 @@ jobs:
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
     - name: Checkout Code
@@ -92,9 +94,44 @@ jobs:
       run: cargo install cargo-tarpaulin --locked
 
     - name: Generate Coverage
-      run: cargo tarpaulin --out Xml --output-dir ./coverage
+      run: |
+        # Run tarpaulin and capture output to a file and stdout
+        cargo tarpaulin --print-summary --out Xml --out Html --output-dir ./coverage | tee coverage_output.txt
+        
+        # Extract percentage for the badge (handles both "92.54% coverage" and "92.54% coverage, ...")
+        COVERAGE=$(grep -oP '\d+(\.\d+)?(?=% coverage)' coverage_output.txt | head -1)
+        echo "COVERAGE_PCT=$COVERAGE" >> $GITHUB_ENV
+        
+        # Create a nice Markdown summary for the GitHub Actions UI
+        echo "### 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
+        echo "Total Coverage: **${COVERAGE}%**" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "#### Summary Details" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`text" >> $GITHUB_STEP_SUMMARY
+        # Extract the table-like part of the summary
+        sed -n '/Coverage Results:/,$p' coverage_output.txt >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
       env:
         DATABASE_URL: sqlite://ci.db
+
+    - name: Update README Badge
+      if: github.ref == 'refs/heads/main'
+      run: |
+        # Determine color based on coverage percentage
+        COLOR=$(awk -v cov="$COVERAGE_PCT" 'BEGIN {if (cov >= 90) print "brightgreen"; else if (cov >= 80) print "green"; else if (cov >= 70) print "yellow"; else print "red"}')
+        
+        # Update the README.md badge URL using sed
+        # Target pattern: ![Coverage](https://img.shields.io/badge/Coverage-ANY_VALUE%25-ANY_COLOR)
+        sed -i "s/badge\/Coverage-[0-9.]*%25-[a-z]*/badge\/Coverage-${COVERAGE_PCT}%25-${COLOR}/" README.md
+        
+        # Commit and push changes if README.md was modified
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add README.md
+        if ! git diff --staged --quiet; then
+          git commit -m "docs: update coverage badge to ${COVERAGE_PCT}%"
+          git push
+        fi
 
     - name: Upload Coverage Reports
       uses: actions/upload-artifact@v4

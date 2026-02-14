@@ -9,7 +9,7 @@ This file documents the specific operational rules and role for Gemini in the **
 ## Operational Rules
 
 ### 1. File Modifications
-- **Source Code (`src/*`, `Cargo.toml`):** **STRICTLY PROHIBITED.** I will never use `write_file` or `replace` on these files. I will instead provide code blocks in the chat for the user to copy-paste.
+- **Source Code (`src/*`, `Cargo.toml`):** **STRICTLY PROHIBITED.** I will **NEVER** use `write_file` or `replace` on these files unless the user **EXPLICITLY** commands me to "write this file" or "fix this file for me". My default behavior is to provide code blocks.
 - **`.time_tracking.md`:** **ALLOWED.** I will update this file directly to track task progress.
 - **`CLAUDE.md` / `todo.md` / `GEMINI.md`:** **ALLOWED.** I may update these project management files to reflect state and learnings.
 - **New Documentation (`docs/*`):** **ALLOWED.** I can create new planning documents to aid development.
@@ -20,11 +20,12 @@ This file documents the specific operational rules and role for Gemini in the **
 - **Safety First:** I will explain the purpose of any command before requesting to run it.
 
 ### 3. Workflow
+- **TDD / No Spoilers:** When introducing new functionality, I will **always** provide the **test case first**. I will **not** show the implementation code until you acknowledge the test or explicitly ask for the solution.
 - **Planning:** I will analyze requests against `docs/` and `todo.md` before suggesting code.
 - **Implementation:**
     1.  I verify the current state.
-    2.  I provide a step-by-step guide with code blocks.
-    3.  The user applies the changes.
+    2.  I provide the test case(s).
+    3.  Once you are ready, I provide the implementation guide.
     4.  I (optionally, with permission) run tests to verify.
 
 ### 4. Security & Privacy (Highest Priority)
@@ -32,6 +33,12 @@ This file documents the specific operational rules and role for Gemini in the **
 - **Handling Secrets:** If a secret is required, refer only to its local location (e.g., "check your `.env` file") but **never** display the actual content or values in the chat.
 
 ## Project Architecture & Learnings
+
+### Rust Technical Learnings (Phase 2b)
+- **Serialization:** `sqlx::Error` does not implement `serde::Serialize`. Therefore, the custom `AppError` enum cannot derive `Serialize`. We must implement custom serialization (e.g., via `json_body()` method) and manual `IntoResponse` implementation.
+- **Error Handling:** When returning `Result<T, AppError>` from a handler, always ensure the final expression evaluates to `T` (by using `?` on the DB call), not `Result<T, E>`. Failing to do so causes confusing "trait bound not satisfied" errors because `serde` tries to serialize the `Result` wrapper instead of the value.
+- **Option vs Result:** Be careful when chaining `ok_or_else` on an `Option` returned from a `Result` unwrapping line. `let x = db_call().await?;` returns `Option`. Then `x.ok_or(...)` converts it to `Result`.
+- **JSON in Tests:** Always double-check JSON string formatting in tests (missing commas, quotes) as they cause 400 Bad Request errors that can be mistaken for logic errors.
 
 ### Database Schema (Finalized Phase 2a)
 - **4-Table Design:** `stream_sessions` -> `raids` -> `raid_state_transitions` and `kills`.
@@ -44,16 +51,10 @@ This file documents the specific operational rules and role for Gemini in the **
 
 ## Current Context
 - **Phase:** Phase 2b (REST API with Web UI).
-- **Immediate Goal:** Phase 2b.1-Refine (Infrastructure Refinement) & Phase 2b.2 (Session Endpoints).
-- **Project State:** Core Analytics (Phase 2a-Extended) complete. Basic Axum server and Health endpoint (Phase 2b.1) implemented and working. Focus is now on robustifying infrastructure before building feature endpoints.
+- **Immediate Goal:** Phase 2b.3 (Raid Endpoints).
+- **Project State:** Core Analytics (Phase 2a-Extended) complete. Session endpoints (Phase 2b.2) complete. Create Raid endpoint (Phase 2b.3 partial) implemented.
 
-## Technical Learnings
-- **SQLx Compile-Time Checks:** `sqlx::query!` macros require a live database connection (via `DATABASE_URL`) at compile time to verify SQL syntax and types.
-- **SQLx Type Mapping:** SQLite `TIMESTAMP` maps to `time::OffsetDateTime` by default in SQLx. Using `PrimitiveDateTime` in structs causes `From<OffsetDateTime>` trait bound errors.
-- **Nullable IDs:** When using `RETURNING session_id` or querying IDs that SQLx thinks might be nullable (e.g. from autoincrement), use `column AS "column!"` syntax to force non-nullable types in Rust.
-- **Unit Testing:** `sqlx` tests requiring async must return `Result<(), Error>` and end with `Ok(())`. `assert!` expects booleans; use `assert_eq!` for value comparison.
-
-## Analytics Architecture (Phase 2a-Extended)
+## Technical Learnings (Phase 2a)
 - **Separation of Concerns:** `src/stats.rs` contains **pure logic** (no DB calls). `src/db.rs` handles data fetching. This ensures analytics logic is unit-testable.
 - **Intervals vs Events:** We use "Virtual Transitions" in `stats.rs` to account for the time gap between `raid.started_at` and the first recorded transition.
 - **Implicit Menu Time:** "Menu/Stash Time" is calculated as `Session Duration - Sum(Raid Durations)`. It is not explicitly tracked in the DB.

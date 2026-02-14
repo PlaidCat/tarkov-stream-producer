@@ -125,14 +125,13 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 - [x] Wire session routes in src/api/routes.rs (0.15h)
 
 #### Phase 2b.3: Raid Endpoints (3-4 hours, revised from 2.5h - complex state logic)
-- [ ] Define raid DTOs in src/api/dto.rs (0.5h)
+- [x] Define raid DTOs in src/api/dto.rs (0.5h)
   - CreateRaidRequest, StateTransitionRequest, EndRaidRequest, RaidResponse
-- [ ] Implement src/api/handlers/raid.rs (1.5h)
-  - POST /api/raid - start raid
-  - GET /api/raid/current - get active raid
-  - POST /api/raid/transition - change state
-  - POST /api/raid/end - end raid
-- [ ] Wire routes in src/api/routes.rs (0.25h)
+- [x] Implement src/api/handlers/raid.rs - Create Raid (POST /api/raid)
+- [ ] Implement src/api/handlers/raid.rs - Get Current Raid (GET /api/raid/current)
+- [ ] Implement src/api/handlers/raid.rs - Transition State (POST /api/raid/transition)
+- [ ] Implement src/api/handlers/raid.rs - End Raid (POST /api/raid/end)
+- [x] Wire routes in src/api/routes.rs (0.25h) - Partial (Create Raid wired)
 - [ ] Test: start raid → transitions → end raid flow (0.5h)
 
 #### Phase 2b.4: Kill Endpoints (1.5 hours)

@@ -39,6 +39,8 @@ This file documents the specific operational rules and role for Gemini in the **
 - **Error Handling:** When returning `Result<T, AppError>` from a handler, always ensure the final expression evaluates to `T` (by using `?` on the DB call), not `Result<T, E>`. Failing to do so causes confusing "trait bound not satisfied" errors because `serde` tries to serialize the `Result` wrapper instead of the value.
 - **Option vs Result:** Be careful when chaining `ok_or_else` on an `Option` returned from a `Result` unwrapping line. `let x = db_call().await?;` returns `Option`. Then `x.ok_or(...)` converts it to `Result`.
 - **JSON in Tests:** Always double-check JSON string formatting in tests (missing commas, quotes) as they cause 400 Bad Request errors that can be mistaken for logic errors.
+- **Async Pitfalls:** Missing an `.await` on a `Result`-returning DB call may not cause a compiler error if the return value isn't strictly used, but it leads to race conditions where subsequent checks (like in tests) happen before the DB update is committed.
+- **Timestamp Consistency:** When using `sqlx` with `OffsetDateTime`, it is safer to generate the timestamp in Rust (e.g., `OffsetDateTime::now_utc()`) and pass it as a parameter rather than relying on SQLite's `CURRENT_TIMESTAMP` in the query, especially when mixing manual timestamp overrides with default values.
 
 ### Database Schema (Finalized Phase 2a)
 - **4-Table Design:** `stream_sessions` -> `raids` -> `raid_state_transitions` and `kills`.
@@ -52,7 +54,7 @@ This file documents the specific operational rules and role for Gemini in the **
 ## Current Context
 - **Phase:** Phase 2b (REST API with Web UI).
 - **Immediate Goal:** Phase 2b.3 (Raid Endpoints).
-- **Project State:** Core Analytics (Phase 2a-Extended) complete. Session endpoints (Phase 2b.2) complete. Create Raid endpoint (Phase 2b.3 partial) implemented.
+- **Project State:** Core Analytics (Phase 2a-Extended) complete. Session endpoints (Phase 2b.2) complete. Create Raid and Get Current Raid endpoints (Phase 2b.3) implemented.
 
 ## Technical Learnings (Phase 2a)
 - **Separation of Concerns:** `src/stats.rs` contains **pure logic** (no DB calls). `src/db.rs` handles data fetching. This ensures analytics logic is unit-testable.

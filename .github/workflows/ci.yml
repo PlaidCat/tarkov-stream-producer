@@ -96,7 +96,8 @@ jobs:
     - name: Generate Coverage
       run: |
         # Run tarpaulin and capture output to a file and stdout
-        cargo tarpaulin --print-summary --out Xml --out Html --output-dir ./coverage | tee coverage_output.txt
+        # Redirect stderr to stdout to ensure summary is captured
+        cargo tarpaulin --print-summary --out Xml --out Html --out Stdout --output-dir ./coverage 2>&1 | tee coverage_output.txt
         
         # Extract percentage for the badge (handles both "92.54% coverage" and "92.54% coverage, ...")
         COVERAGE=$(grep -oP '\d+(\.\d+)?(?=% coverage)' coverage_output.txt | head -1)

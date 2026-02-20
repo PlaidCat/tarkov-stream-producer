@@ -40,6 +40,22 @@ pub struct RaidResponse {
     pub extract_location: Option<String>,
 }
 
+impl From<crate::models::Raid> for RaidResponse {
+    fn from(r: crate::models::Raid) -> Self {
+        RaidResponse {
+            raid_id: r.raid_id,
+            session_id: r.session_id,
+            started_at: r.started_at.to_string(),
+            ended_at: r.ended_at.map(|t| t.to_string()),
+            map_name: r.map_name,
+            character_type: r.character_type,
+            game_mode: r.game_mode,
+            current_state: r.current_state,
+            extract_location: r.extract_location,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

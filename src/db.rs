@@ -146,13 +146,15 @@ pub async fn create_raid(
 
 pub async fn end_raid(pool: &SqlitePool, raid_id: i64, end_time: Option<OffsetDateTime>, 
                       extract_location: Option<String>,) -> Result<(), Error> {
+    let ts = end_time.unwrap_or_else(|| OffsetDateTime::now_utc());
     sqlx::query!(
         r#"
         UPDATE raids
-        SET ended_at = COALESCE(?, CURRENT_TIMESTAMP), extract_location = ?
+        SET ended_at = ?,
+        extract_location = ?
         WHERE raid_id = ?
         "#,
-        end_time,
+        ts,
         extract_location,
         raid_id
     )

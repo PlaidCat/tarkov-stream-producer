@@ -132,7 +132,7 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 - [x] Implement src/api/handlers/raid.rs - Transition State (POST /api/raid/transition)
 - [x] Implement src/api/handlers/raid.rs - End Raid (POST /api/raid/end)
 - [x] Wire routes in src/api/routes.rs (0.25h) - All raid routes wired
-- [ ] Test: start raid → transitions → end raid flow (0.5h)
+- [x] Test: start raid → transitions → end raid flow (0.5h)
 
 #### Phase 2b.4: Kill Endpoints (1.5 hours)
 - [ ] Define kill DTOs in src/api/dto.rs (0.25h)

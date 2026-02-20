@@ -415,4 +415,83 @@ mod tests {
         
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
+
+    #[tokio::test]
+    async fn test_full_raid_flow() {
+        let pool = setup_test_db().await.expect("setup db");
+        db::create_session(&pool, SessionType::Stream, None, None)
+            .await.expect("session");
+
+        let app = api_router().with_state(AppState::new(pool.clone()));
+
+        // 1. Start raid → 201
+        let response = app.clone()
+            .oneshot(
+                Request::post("/api/raid")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{
+                        "map_name": "Factory",
+                        "character_type": "pmc",
+                        "game_mode": "pvp"}"#))
+                    .unwrap(),
+            ).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::CREATED);
+
+        // 2. Verify initial state
+        let response = app.clone()
+            .oneshot(
+                Request::get("/api/raid/current")
+                    .body(Body::empty()).unwrap(),
+            ).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["current_state"], "stash_management");
+
+        // 3. Transition → in_raid
+        let response = app.clone()
+            .oneshot(
+                Request::post("/api/raid/transition")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"to_state": "in_raid"}"#))
+                    .unwrap(),
+            ).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        // 4. Verify state changed
+        let response = app.clone()
+            .oneshot(
+                Request::get("/api/raid/current")
+                    .body(Body::empty()).unwrap(),
+            ).await.unwrap();
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["current_state"], "in_raid");
+
+        // 5. End raid
+        let response = app.clone()
+            .oneshot(
+                Request::post("/api/raid/end")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{
+                        "final_state": "survived",
+                        "extract_location": "Gate 3"
+                    }"#)).unwrap(),
+            ).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        // 6. Verify no active raid
+        let response = app
+            .oneshot(
+                Request::get("/api/raid/current")
+                    .body(Body::empty()).unwrap(),
+            ).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
 }

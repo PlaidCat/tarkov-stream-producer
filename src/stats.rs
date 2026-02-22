@@ -413,13 +413,13 @@ mod tests {
 
         // Add 3 kills (all scavs) during the raid
         let kill_time_1 = time + time::Duration::minutes(5);
-        add_kill(&pool, raid_id, "scav", Some("AK-74M".to_string()), Some(false), Some(kill_time_1)).await?;
+        add_kill(&pool, raid_id, "scav", Some("AK-74M".to_string()), Some(false), None, Some(kill_time_1)).await?;
 
         let kill_time_2 = time + time::Duration::minutes(10);
-        add_kill(&pool, raid_id, "scav", Some("Mosin".to_string()), Some(true), Some(kill_time_2)).await?;
+        add_kill(&pool, raid_id, "scav", Some("Mosin".to_string()), Some(true), None, Some(kill_time_2)).await?;
 
         let kill_time_3 = time + time::Duration::minutes(15);
-        add_kill(&pool, raid_id, "scav", Some("SKS".to_string()), Some(false), Some(kill_time_3)).await?;
+        add_kill(&pool, raid_id, "scav", Some("SKS".to_string()), Some(false), None, Some(kill_time_3)).await?;
 
         time = time + time::Duration::minutes(17);
 
@@ -492,8 +492,8 @@ mod tests {
         let raid1 = create_raid(&pool, session_id, "Customs", CharacterType::PMC, GameMode::PVP, Some(start1)).await?;
 
         // Add 2 Kills
-        add_kill(&pool, raid1, "scav", None, None, Some(start1 + time::Duration::minutes(5))).await?;
-        add_kill(&pool, raid1, "pmc", None, None, Some(start1 + time::Duration::minutes(10))).await?;
+        add_kill(&pool, raid1, "scav", None, None, None, Some(start1 + time::Duration::minutes(5))).await?;
+        add_kill(&pool, raid1, "pmc", None, None, None, Some(start1 + time::Duration::minutes(10))).await?;
 
         // End as Survived
         log_state_transition(&pool, raid1, "survived", Some(start1 + time::Duration::minutes(30))).await?;
@@ -504,7 +504,7 @@ mod tests {
         let raid2 = create_raid(&pool, session_id, "Factory", CharacterType::PMC, GameMode::PVP, Some(start2)).await?;
 
         // Add 1 Kill
-        add_kill(&pool, raid2, "scav", None, None, Some(start2 + time::Duration::minutes(5))).await?;
+        add_kill(&pool, raid2, "scav", None, None, None, Some(start2 + time::Duration::minutes(5))).await?;
 
         // End as KIA (State != survived)
         log_state_transition(&pool, raid2, "kia", Some(start2 + time::Duration::minutes(15))).await?;
@@ -540,15 +540,15 @@ mod tests {
 
         // Create PVE raid with 2 kills (survived)
         let pve_raid = create_raid(&pool, session, "Customs", CharacterType::PMC, GameMode::PVE, Some(base_time)).await?;
-        add_kill(&pool, pve_raid, "scav", None, None, Some(base_time + time::Duration::minutes(5))).await?;
-        add_kill(&pool, pve_raid, "scav", None, None, Some(base_time + time::Duration::minutes(10))).await?;
+        add_kill(&pool, pve_raid, "scav", None, None, None, Some(base_time + time::Duration::minutes(5))).await?;
+        add_kill(&pool, pve_raid, "scav", None, None, None, Some(base_time + time::Duration::minutes(10))).await?;
         log_state_transition(&pool, pve_raid, "survived", Some(base_time + time::Duration::minutes(20))).await?;
         end_raid(&pool, pve_raid, Some(base_time + time::Duration::minutes(20)), None).await?;
 
         // Create PVP raid with 1 kill (died)
         let pvp_raid = create_raid(&pool, session, "Factory", CharacterType::PMC, GameMode::PVP, Some(base_time +
     time::Duration::minutes(30))).await?;
-        add_kill(&pool, pvp_raid, "pmc", None, None, Some(base_time + time::Duration::minutes(35))).await?;
+        add_kill(&pool, pvp_raid, "pmc", None, None, None, Some(base_time + time::Duration::minutes(35))).await?;
         log_state_transition(&pool, pvp_raid, "died", Some(base_time + time::Duration::minutes(40))).await?;
         end_raid(&pool, pvp_raid, Some(base_time + time::Duration::minutes(40)), None).await?;
 
@@ -577,17 +577,17 @@ mod tests {
 
        // Raid 1: Survived with 3 kills
        let raid1 = create_raid(&pool, session, "Customs", CharacterType::PMC, GameMode::PVE, Some(base_time)).await?;
-       add_kill(&pool, raid1, "scav", None, None, Some(base_time + time::Duration::minutes(5))).await?;
-       add_kill(&pool, raid1, "scav", None, None, Some(base_time + time::Duration::minutes(10))).await?;
-       add_kill(&pool, raid1, "scav", None, None, Some(base_time + time::Duration::minutes(15))).await?;
+       add_kill(&pool, raid1, "scav", None, None, None, Some(base_time + time::Duration::minutes(5))).await?;
+       add_kill(&pool, raid1, "scav", None, None, None, Some(base_time + time::Duration::minutes(10))).await?;
+       add_kill(&pool, raid1, "scav", None, None, None, Some(base_time + time::Duration::minutes(15))).await?;
        log_state_transition(&pool, raid1, "survived", Some(base_time + time::Duration::minutes(20))).await?;
        end_raid(&pool, raid1, Some(base_time + time::Duration::minutes(20)), None).await?;
 
        // Raid 2: Survived with 2 kills
        let raid2 = create_raid(&pool, session, "Woods", CharacterType::PMC, GameMode::PVE,
            Some(base_time + time::Duration::minutes(30))).await?;
-       add_kill(&pool, raid2, "scav", None, None, Some(base_time + time::Duration::minutes(35))).await?;
-       add_kill(&pool, raid2, "scav", None, None, Some(base_time + time::Duration::minutes(40))).await?;
+       add_kill(&pool, raid2, "scav", None, None, None, Some(base_time + time::Duration::minutes(35))).await?;
+       add_kill(&pool, raid2, "scav", None, None, None, Some(base_time + time::Duration::minutes(40))).await?;
        log_state_transition(&pool, raid2, "survived", Some(base_time + time::Duration::minutes(45))).await?;
        end_raid(&pool, raid2, Some(base_time + time::Duration::minutes(45)), None).await?;
 
@@ -611,7 +611,7 @@ mod tests {
         // Session 1: All-time baseline (1 raid, 1 kill, survived)
         let s1 = create_session(&pool, SessionType::Stream, None, Some(base_time)).await?;
         let r1 = create_raid(&pool, s1, "Customs", CharacterType::PMC, GameMode::PVP, Some(base_time)).await?;
-        add_kill(&pool, r1, "scav", None, None, Some(base_time)).await?;
+        add_kill(&pool, r1, "scav", None, None, None, Some(base_time)).await?;
         log_state_transition(&pool, r1, "survived", Some(base_time + Duration::minutes(10))).await?;
         end_raid(&pool, r1, Some(base_time + Duration::minutes(10)), None).await?;
 
@@ -619,7 +619,7 @@ mod tests {
         let s2 = create_session(&pool, SessionType::Stream, None, Some(base_time + Duration::hours(1))).await?;
         let r2 = create_raid(&pool, s2, "Factory", CharacterType::PMC, GameMode::PVP, Some(base_time + Duration::hours(1))).await?;
         for _ in 0..5 {
-            add_kill(&pool, r2, "pmc", None, None, Some(base_time + Duration::hours(1))).await?;
+            add_kill(&pool, r2, "pmc", None, None, None, Some(base_time + Duration::hours(1))).await?;
         }
         log_state_transition(&pool, r2, "died", Some(base_time + Duration::hours(1) + Duration::minutes(5))).await?;
         end_raid(&pool, r2, Some(base_time + Duration::hours(1) + Duration::minutes(5)), None).await?;
@@ -759,9 +759,9 @@ mod tests {
         time = time + time::Duration::minutes(10);
 
         // Get 2 kills before disconnect
-        add_kill(&pool, raid_id, "scav", Some("AK-74".into()), Some(false), Some(time)).await?;
+        add_kill(&pool, raid_id, "scav", Some("AK-74".into()), Some(false), None, Some(time)).await?;
         time = time + time::Duration::minutes(3);
-        add_kill(&pool, raid_id, "pmc", Some("M4A1".into()), Some(true), Some(time)).await?;
+        add_kill(&pool, raid_id, "pmc", Some("M4A1".into()), Some(true), None, Some(time)).await?;
         time = time + time::Duration::minutes(2);
 
         // DISCONNECT - internet drops
@@ -773,7 +773,7 @@ mod tests {
         time = time + time::Duration::minutes(8);
 
         // Get 1 more kill after reconnect
-        add_kill(&pool, raid_id, "scav", Some("SKS".into()), Some(false), Some(time)).await?;
+        add_kill(&pool, raid_id, "scav", Some("SKS".into()), Some(false), None, Some(time)).await?;
         time = time + time::Duration::minutes(2);
 
         // Extract successfully
@@ -1090,9 +1090,9 @@ mod tests {
         time = time + time::Duration::minutes(15);
 
         // Get 2 kills
-        add_kill(&pool, raid2, "scav", Some("AK-74".into()), Some(false), Some(time)).await?;
+        add_kill(&pool, raid2, "scav", Some("AK-74".into()), Some(false), None, Some(time)).await?;
         time = time + time::Duration::minutes(3);
-        add_kill(&pool, raid2, "pmc", Some("M4A1".into()), Some(true), Some(time)).await?;
+        add_kill(&pool, raid2, "pmc", Some("M4A1".into()), Some(true), None, Some(time)).await?;
         time = time + time::Duration::minutes(2);
 
         log_state_transition(&pool, raid2, "raid_ending", Some(time)).await?;

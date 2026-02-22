@@ -72,4 +72,5 @@ pub struct Kill {
     pub enemy_type: String, //String for extensibility
     pub weapon_used: Option<String>,
     pub headshot: Option<bool>,
+    pub distance_meters: Option<f64>,
 }

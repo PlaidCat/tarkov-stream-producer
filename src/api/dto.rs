@@ -61,6 +61,7 @@ pub struct AddKillRequest {
     pub enemy_type: String,
     pub weapon_used: Option<String>,
     pub headshot: Option<bool>,
+    pub distance_meters: Option<f64>,
     pub killed_at: Option<String>,
 }
 
@@ -77,6 +78,7 @@ pub struct KillResponse {
     pub enemy_type: String,
     pub weapon_used: Option<String>,
     pub headshot: Option<bool>,
+    pub distance_meters: Option<f64>,
 }
 
 impl From<crate::models::Kill> for KillResponse {
@@ -88,6 +90,7 @@ impl From<crate::models::Kill> for KillResponse {
             enemy_type: k.enemy_type,
             weapon_used: k.weapon_used,
             headshot: k.headshot,
+            distance_meters: k.distance_meters,
         }
     }
 }
@@ -210,6 +213,7 @@ mod tests {
             enemy_type: "scav".to_string(),
             weapon_used: Some("M4A1".to_string()),
             headshot: Some(true),
+            distance_meters: Some(42.5),
         };
 
         let json = serde_json::to_string(&resp).unwrap();

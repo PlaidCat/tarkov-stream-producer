@@ -95,6 +95,7 @@ CREATE TABLE kills (
     enemy_type TEXT NOT NULL,  -- No CHECK constraint for extensibility (Phase 4 may discover new types)
     weapon_used TEXT,
     headshot BOOLEAN,
+    distance_meters REAL,      -- Kill distance from kill screen (added 2026-02-22)
 
     FOREIGN KEY (raid_id) REFERENCES raids(raid_id) ON DELETE CASCADE
 );
@@ -439,6 +440,7 @@ pub struct Kill {
     pub enemy_type: String,  // String for extensibility (no enum)
     pub weapon_used: Option<String>,
     pub headshot: Option<bool>,
+    pub distance_meters: Option<f64>,  // From kill screen, in meters (added 2026-02-22)
 }
 ```
 
@@ -462,7 +464,7 @@ pub struct Kill {
 - `get_time_in_state(raid_id, state)` → total_seconds
 
 ### Kills
-- `add_kill(raid_id, enemy_type, weapon, headshot)` → kill_id
+- `add_kill(raid_id, enemy_type, weapon, headshot, distance_meters, killed_at)` → kill_id
 - `get_kills_for_raid(raid_id)` → Vec<Kill>
 - `get_kills_for_session(session_id)` → Vec<Kill>
 

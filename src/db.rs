@@ -331,20 +331,22 @@ pub async fn add_kill(
     enemy_type: &str,
     weapon_used: Option<String>,
     headshot: Option<bool>,
+    distance_meters: Option<f64>,
     killed_at: Option<OffsetDateTime>,
 ) -> Result<i64, Error> {
     let ts = killed_at.unwrap_or_else(|| OffsetDateTime::now_utc());
 
     let id = sqlx::query!(
         r#"
-        INSERT INTO kills (raid_id, enemy_type, weapon_used, headshot, killed_at)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO kills (raid_id, enemy_type, weapon_used, headshot, distance_meters, killed_at)
+        VALUES (?, ?, ?, ?, ?, ?)
         RETURNING kill_id as "kill_id!"
         "#,
         raid_id,
         enemy_type,
         weapon_used,
         headshot,
+        distance_meters,
         ts
     )
     .fetch_one(pool)
@@ -364,7 +366,8 @@ pub async fn get_kills_for_raid(pool: &SqlitePool, raid_id: i64) -> Result<Vec<c
             killed_at as "killed_at!",
             enemy_type as "enemy_type!",
             weapon_used,
-            headshot as "headshot: bool"
+            headshot as "headshot: bool",
+            distance_meters as "distance_meters: f64"
         FROM kills
         WHERE raid_id = ?
         ORDER BY killed_at ASC
@@ -506,6 +509,7 @@ pub mod tests {
             "scav",
             Some("M4A1".to_string()),
             Some(true),
+            None,
             Some(kill_time)
         ).await?;
         assert!(kill_id_1 > 0);
@@ -517,6 +521,7 @@ pub mod tests {
             "pmc",
             Some("HK-416".to_string()),
             Some(false),
+            None,
             Some(time + time::Duration::seconds(150))
         ).await?;
         assert!(kill_id_2 > 0);

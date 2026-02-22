@@ -135,7 +135,7 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 - [x] Test: start raid → transitions → end raid flow (0.5h)
 
 #### Phase 2b.4: Kill Endpoints (1.5 hours)
-- [ ] Define kill DTOs in src/api/dto.rs (0.25h)
+- [x] Define kill DTOs in src/api/dto.rs (0.25h)
   - AddKillRequest, BatchKillsRequest, KillResponse
 - [ ] Implement src/api/handlers/kill.rs (1h)
   - POST /api/raid/:raid_id/kills - add single kill

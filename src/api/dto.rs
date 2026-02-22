@@ -56,6 +56,42 @@ impl From<crate::models::Raid> for RaidResponse {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AddKillRequest {
+    pub enemy_type: String,
+    pub weapon_used: Option<String>,
+    pub headshot: Option<bool>,
+    pub killed_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct BatchKillsRequest {
+    pub kills: Vec<AddKillRequest>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct KillResponse {
+    pub kill_id: i64,
+    pub raid_id: i64,
+    pub killed_at: String,
+    pub enemy_type: String,
+    pub weapon_used: Option<String>,
+    pub headshot: Option<bool>,
+}
+
+impl From<crate::models::Kill> for KillResponse {
+    fn from(k: crate::models::Kill) -> Self {
+        KillResponse {
+            kill_id: k.kill_id,
+            raid_id: k.raid_id,
+            killed_at: k.killed_at.to_string(),
+            enemy_type: k.enemy_type,
+            weapon_used: k.weapon_used,
+            headshot: k.headshot,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -127,5 +163,59 @@ mod tests {
         assert!(json.contains(r#""raid_id":101"#));
         assert!(json.contains(r#""map_name":"Interchange""#));
         assert!(json.contains(r#"character_type":"scav""#));
+    }
+
+    #[test]
+    fn test_add_kill_request_deserialization() {
+        let json = r#"{"enemy_type": "scav", "weapon_used": "M4A1", "headshot": true, "killed_at": "2026-02-22T10:00:00Z"}"#;
+        let req: AddKillRequest = serde_json::from_str(json).unwrap();
+
+        assert_eq!(req.enemy_type, "scav");
+        assert_eq!(req.weapon_used, Some("M4A1".to_string()));
+        assert_eq!(req.headshot, Some(true));
+        assert_eq!(req.killed_at, Some("2026-02-22T10:00:00Z".to_string()));
+    }
+
+    #[test]
+    fn test_add_kill_request_optional_fields() {
+        let json = r#"{"enemy_type": "pmc"}"#;
+        let req: AddKillRequest = serde_json::from_str(json).unwrap();
+
+        assert_eq!(req.enemy_type, "pmc");
+        assert_eq!(req.weapon_used, None);
+        assert_eq!(req.headshot, None);
+    }
+
+    #[test]
+    fn test_batch_kills_request_deserialization() {
+        let json = r#"{
+            "kills": [
+                {"enemy_type": "scav", "headshot": true},
+                {"enemy_type": "pmc", "weapon_used": "AK74"}
+            ]
+        }"#;
+        let req: BatchKillsRequest = serde_json::from_str(json).unwrap();
+
+        assert_eq!(req.kills.len(), 2);
+        assert_eq!(req.kills[0].enemy_type, "scav");
+        assert_eq!(req.kills[1].weapon_used, Some("AK74".to_string()));
+    }
+
+    #[test]
+    fn test_kill_response_serialization() {
+        let resp = KillResponse {
+            kill_id: 1,
+            raid_id: 42,
+            killed_at: "2026-02-22T10:00:00Z".to_string(),
+            enemy_type: "scav".to_string(),
+            weapon_used: Some("M4A1".to_string()),
+            headshot: Some(true),
+        };
+
+        let json = serde_json::to_string(&resp).unwrap();
+
+        assert!(json.contains(r#""kill_id":1"#));
+        assert!(json.contains(r#""enemy_type":"scav""#));
+        assert!(json.contains(r#""headshot":true"#));
     }
 }

@@ -4,6 +4,7 @@ use crate::api::handlers::health::health_check;
 use tower_http::trace::TraceLayer;
 use crate::api::handlers::session::{create_session, get_current_session, end_current_session};
 use crate::api::handlers::raid::{create_raid, get_current_raid, transition_state, end_raid};
+use crate::api::handlers::kill::{add_kill, get_kills, add_batch_kills};
 
 pub fn api_router() -> Router<AppState> {
     Router::new()
@@ -15,6 +16,8 @@ pub fn api_router() -> Router<AppState> {
         .route("/api/raid/current", axum::routing::get(get_current_raid))
         .route("/api/raid/transition", axum::routing::post(transition_state))
         .route("/api/raid/end", axum::routing::post(end_raid))
+        .route("/api/raid/{raid_id}/kills", axum::routing::post(add_kill).get(get_kills))
+        .route("/api/raid/current/kills/batch", axum::routing::post(add_batch_kills))
         .layer(TraceLayer::new_for_http())
 }
 

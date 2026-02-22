@@ -11,8 +11,8 @@ gameplay statistics and display them on stream. The project is in early developm
 analysis using OCR/vision.
 
 **Current Status:** Phase 2b (REST API) in progress. Phase 2a (Core + Extended) complete with
-4-table schema, CRUD operations, and analytics. Phase 2b.1 (Core Infrastructure) complete.
-Phase 2b.2 (Session Endpoints) in progress — Steps 2.1–2.4 done, Steps 2.5–2.6 next.
+4-table schema, CRUD operations, and analytics. Phase 2b.1–2b.4 complete (Core Infrastructure,
+Session Endpoints, Raid Endpoints, Kill Endpoints). Phase 2b.5 (Stats Endpoints) is next.
 
 ## CRITICAL: Security & Streaming Protection (HIGHEST PRIORITY)
 
@@ -229,26 +229,18 @@ REST API Development (Phase 2b) - IN PROGRESS
 - **Framework choice:** Axum 0.8 selected for REST API
 - **Development approach:** Test-Driven Development (TDD) with Red-Green-Refactor cycle
 - **Started:** 2026-02-03
-- **Current status:** Phase 2b.1 (Core Infrastructure) ✅ COMPLETE, Phase 2b.1-Refine next
-- **Completed (2026-02-03):**
-  - Step 1.1: AppError enum with variants (NotFound, Conflict, ValidationError, BadRequest, DatabaseError)
-  - Step 1.2: status_code() method for HTTP status mapping
-  - Step 1.3: json_body() method returning `{"error": "message", "type": "error_type"}`
-  - Step 1.4: IntoResponse trait implementation for automatic error conversion
-- **Completed (2026-02-08):**
-  - Step 1.5: AppState struct with SqlitePool + Clone derive
-  - Step 1.6: health_check() handler with State extractor
-  - Step 1.7: Health response body format verification
-- **Completed (2026-02-09):**
-  - Step 1.8: api_router() in src/api/routes.rs mounting health endpoint
-  - Step 1.9: Integration checkpoint — main.rs wired as async server, curl /health verified
-- **Completed (2026-02-10):**
-  - Step 2.1: CreateSessionRequest DTO in src/api/dto.rs with serde derives
-  - Step 2.2: POST /api/session → 201 Created with create_session handler
-  - Step 2.3: GET /api/session/current → 404 when no active session
-  - Step 2.4: GET /api/session/current → 200 with session JSON when active
+- **Current status:** Phase 2b.4 (Kill Endpoints) ✅ COMPLETE — 62 tests, 94.86% coverage
+- **Completed (2026-02-03 to 2026-02-09):** Phase 2b.1 — Core Infrastructure (AppError, AppState, health endpoint, api_router, server startup)
+- **Completed (2026-02-12):** Phase 2b.2 — Session Endpoints (POST /api/session, GET /api/session/current, POST /api/session/end)
+- **Completed (2026-02-19):** Phase 2b.3 — Raid Endpoints (POST /api/raid, GET /api/raid/current, POST /api/raid/transition, POST /api/raid/end)
+- **Completed (2026-02-22):** Phase 2b.4 — Kill Endpoints
+  - Schema migration: `distance_meters REAL` added to kills table (from Tarkov kill screen)
+  - `get_raid_by_id()` added to db.rs
+  - POST /api/raid/{raid_id}/kills — add single kill to any raid by ID
+  - POST /api/raid/current/kills/batch — add multiple kills to active raid
+  - GET /api/raid/{raid_id}/kills — list kills for a raid
 - **Prerequisite change:** Added `Serialize, Deserialize` + `#[serde(rename_all = "lowercase")]` to model enums (SessionType, CharacterType, GameMode) for JSON serialization through the API
-- **Next:** Steps 2.5-2.6 (POST /api/session/end), then Phase 2b.3 (Raid Endpoints)
+- **Next:** Phase 2b.5 — Stats Endpoints (GET /api/stats/session/current, GET /api/stats/raid/:raid_id)
 
 Planned Architecture (Future Phases)
 
@@ -370,8 +362,13 @@ Phase 5: Chat Bot Integration (Deferred)
   - Bind to `127.0.0.1:3000` for localhost-only access (safe for streaming)
 
 ### Axum Handler Patterns (2026-02-10)
+- **Path parameters**: Use `Path` extractor — name in route `{raid_id}` must match variable name in `Path(raid_id): Path<i64>`
+  - Axum auto-parses to the specified type; sends 400 if non-integer provided
+  - Example: `.route("/api/raid/{raid_id}/kills", axum::routing::post(add_kill).get(get_kills))`
+  - Multiple methods on same route: chain with `.get(handler).post(handler)`
 - **Handler signatures vary by HTTP method and need:**
   - POST with body: `async fn handler(State(state): State<AppState>, Json(req): Json<DtoType>) -> Result<...>`
+  - With path param: `async fn handler(State(state): State<AppState>, Path(id): Path<i64>, Json(req): Json<DtoType>) -> Result<...>`
   - GET (no body): `async fn handler(State(state): State<AppState>) -> Result<...>`
   - POST without body (action endpoints): `async fn handler(State(state): State<AppState>) -> Result<...>`
 - **Return types:**

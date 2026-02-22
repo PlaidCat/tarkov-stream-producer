@@ -134,15 +134,17 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 - [x] Wire routes in src/api/routes.rs (0.25h) - All raid routes wired
 - [x] Test: start raid → transitions → end raid flow (0.5h)
 
-#### Phase 2b.4: Kill Endpoints (1.5 hours)
+#### Phase 2b.4: Kill Endpoints ✅ COMPLETED (2026-02-22)
 - [x] Define kill DTOs in src/api/dto.rs (0.25h)
   - AddKillRequest, BatchKillsRequest, KillResponse
-- [ ] Implement src/api/handlers/kill.rs (1h)
+- [x] Schema migration: add distance_meters REAL to kills table
+- [x] Add get_raid_by_id() to db.rs with tests
+- [x] Implement src/api/handlers/kill.rs (1h)
   - POST /api/raid/:raid_id/kills - add single kill
   - POST /api/raid/current/kills/batch - add multiple kills
   - GET /api/raid/:raid_id/kills - list kills for raid
-- [ ] Wire routes with path parameters (0.25h)
-- [ ] Test: single kill, batch kills, retrieve kills (0.25h)
+- [x] Wire routes with path parameters (0.25h)
+- [x] Test: single kill, batch kills, retrieve kills (0.25h)
 
 #### Phase 2b.5: Stats Endpoints (2-2.5 hours, revised from 1.5h - stats logic takes longer)
 - [ ] Add aggregation queries to src/db.rs (0.5h)

@@ -254,6 +254,27 @@ pub async fn get_all_raids(pool: &SqlitePool) -> Result<Vec<Raid>, Error> {
     ).fetch_all(pool).await
 }
 
+pub async fn get_raid_by_id(pool: &SqlitePool, raid_id: i64) -> Result<Option<crate::models::Raid>, Error> {
+    sqlx::query_as!(
+        crate::models::Raid,
+        r#"
+        SELECT
+            raid_id as "raid_id!",
+            session_id as "session_id!",
+            started_at as "started_at!",
+            ended_at,
+            map_name as "map_name!",
+            character_type as "character_type!: CharacterType",
+            game_mode as "game_mode!: GameMode",
+            current_state as "current_state!",
+            extract_location
+        FROM raids
+        WHERE raid_id = ?
+        "#,
+        raid_id
+    ).fetch_optional(pool).await
+}
+
 // ================================================================================================
 // State Transition Operations
 // ================================================================================================
@@ -607,4 +628,37 @@ pub mod tests {
         pool.close().await;
         Ok(())
     }
+
+#[tokio::test]
+    async fn test_get_raid_by_id_found() -> Result<(), sqlx::Error> {
+        let pool = setup_test_db().await?;
+        let session_id = create_session(&pool, SessionType::Stream, None, None).await?;
+
+        let raid_id = create_raid(
+            &pool, session_id, "Customs",
+            CharacterType::PMC, GameMode::PVP, None
+        ).await?;
+
+        let raid = get_raid_by_id(&pool, raid_id).await?;
+
+        assert!(raid.is_some());
+        let raid = raid.unwrap();
+        assert_eq!(raid.raid_id, raid_id);
+        assert_eq!(raid.map_name, "Customs");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_get_raid_by_id_not_found() -> Result<(), sqlx::Error> {
+        let pool = setup_test_db().await?;
+
+        let raid = get_raid_by_id(&pool, 9999).await?;
+
+        assert!(raid.is_none());
+
+        Ok(())
+    }
+
+
 }

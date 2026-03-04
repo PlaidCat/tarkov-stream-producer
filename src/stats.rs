@@ -275,6 +275,10 @@ pub async fn calculate_time_in_state(
 ) -> Result<Vec<StateTime>, sqlx::Error> {
     let transitions = get_raid_transitions(&pool, raid_id).await?;
 
+    if transitions.len() < 2 {
+        return Ok(Vec::new());
+    }
+
     let mut state_durations: HashMap<String, Duration> = HashMap::new();
 
     for i in 0..transitions.len() - 1 {

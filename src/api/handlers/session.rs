@@ -68,7 +68,6 @@ mod tests {
     use axum::{body::Body, http::Request};
     use http::StatusCode;
     use tower::ServiceExt;
-    use crate::api;
     use crate::api::state::AppState;
     use crate::api::routes::api_router;
     use crate::db::tests::setup_test_db;
@@ -83,7 +82,7 @@ mod tests {
             .oneshot(
                 Request::post("/api/session")
                     .header("content-type", "application/json")
-                    .body(Body::from(r#"{"session_type": "stream"}"#))
+                    .body(Body::from(r#"{"session_type":"stream"}"#))
                     .unwrap()
             )
             .await

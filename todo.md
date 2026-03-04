@@ -146,16 +146,14 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 - [x] Wire routes with path parameters (0.25h)
 - [x] Test: single kill, batch kills, retrieve kills (0.25h)
 
-#### Phase 2b.5: Stats Endpoints (2-2.5 hours, revised from 1.5h - stats logic takes longer)
-- [ ] Add aggregation queries to src/db.rs (0.5h)
-  - Session stats (total raids, survival rate, K/D)
-  - Raid details with state durations
-- [ ] Define stats DTOs in src/api/dto.rs (0.25h)
+#### Phase 2b.5: Stats Endpoints ✅ COMPLETED (2026-03-04)
+- [x] Add aggregation queries to src/db.rs (Stashed for Phase 3.1)
+- [x] Define stats DTOs in src/api/dto.rs (0.25h)
   - SessionStatsResponse, RaidStatsResponse
-- [ ] Implement src/api/handlers/stats.rs (0.5h)
+- [x] Implement src/api/handlers/stats.rs (0.5h)
   - GET /api/stats/session/current - current session aggregations
   - GET /api/stats/raid/:raid_id - individual raid details
-- [ ] Test: verify calculations match expected values (0.25h)
+- [x] Test: verify calculations match expected values (0.25h)
 
 #### Phase 2b.6: Web UI (4-6 hours, revised from 3-4h - new territory with Askama)
 - [ ] Set up src/web/templates/ directory, configure Askama (0.25h)
@@ -195,6 +193,12 @@ This document outlines the development plan for the Tarkov Stream Producer appli
 - [ ] Test end-to-end: Stream Deck → API → Database (1h)
 
 ## Phase 3: OBS Integration
+
+### Phase 3.1: Performance & Refinement (Stashed Optimizations)
+- [ ] Implement robust SQL aggregation in `src/db.rs` to replace N+1 queries in `stats.rs` (0.75h)
+  - Replace `calculate_stats_from_raids` loop with a single `LEFT JOIN` query for kills and durations.
+- [ ] Refactor `AppError` to support structured logging for database failures (0.5h)
+- [ ] Add request/response timing metrics to `TraceLayer` middleware (0.5h)
 
 ### OBS Display (3-4 hours total)
 - [ ] Research OBS integration methods (text files vs obs-websocket) (1h)

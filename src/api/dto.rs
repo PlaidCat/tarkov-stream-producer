@@ -95,6 +95,28 @@ impl From<crate::models::Kill> for KillResponse {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SessionStatsResponse {
+    pub total_raids: i64,
+    pub survived_raids: i64,
+    pub survival_rate: f64,
+    pub total_kills: i64,
+    pub kd_ratio: f64,
+    pub avg_raid_duration_seconds: f64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct StateTimeResponse {
+    pub state: String,
+    pub duration_seconds: f64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RaidStatsResponse {
+    pub raid_id: i64,
+    pub state_durations: Vec<StateTimeResponse>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -221,5 +243,45 @@ mod tests {
         assert!(json.contains(r#""kill_id":1"#));
         assert!(json.contains(r#""enemy_type":"scav""#));
         assert!(json.contains(r#""headshot":true"#));
+    }
+
+    #[test]
+    fn test_session_stats_response_serialization() {
+        let resp = SessionStatsResponse {
+            total_raids: 5,
+            survived_raids: 3,
+            survival_rate: 0.6,
+            total_kills: 15,
+            kd_ratio: 7.5,
+            avg_raid_duration_seconds: 1200.5,
+        };
+
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains(r#""total_raids":5"#));
+        assert!(json.contains(r#""kd_ratio":7.5"#));
+        assert!(json.contains(r#""avg_raid_duration_seconds":1200.5"#));
+    }
+
+    #[test]
+    fn test_raid_stats_response_serialization() {
+        let resp = RaidStatsResponse {
+            raid_id: 1,
+            state_durations: vec![
+                StateTimeResponse {
+                    state: "queuing".to_string(),
+                    duration_seconds: 300.0,
+                },
+                StateTimeResponse {
+                    state: "raid_active".to_string(),
+                    duration_seconds: 1800.0,
+                },
+            ],
+        };
+
+        let json = serde_json::to_string(&resp).unwrap();
+
+        assert!(json.contains(r#""raid_id":1"#));
+        assert!(json.contains(r#""state":"queuing""#));
+        assert!(json.contains(r#""duration_seconds":300.0"#));
     }
 }

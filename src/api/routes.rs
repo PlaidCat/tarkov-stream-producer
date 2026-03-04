@@ -1,10 +1,11 @@
 use axum::Router;
-use crate::{api::state::AppState, db::end_session};
-use crate::api::handlers::health::health_check;
+use crate::api::state::AppState;
 use tower_http::trace::TraceLayer;
+use crate::api::handlers::health::health_check;
 use crate::api::handlers::session::{create_session, get_current_session, end_current_session};
 use crate::api::handlers::raid::{create_raid, get_current_raid, transition_state, end_raid};
 use crate::api::handlers::kill::{add_kill, get_kills, add_batch_kills};
+use crate::api::handlers::stats::{get_current_session_stats, get_raid_stats};
 
 pub fn api_router() -> Router<AppState> {
     Router::new()
@@ -18,13 +19,15 @@ pub fn api_router() -> Router<AppState> {
         .route("/api/raid/end", axum::routing::post(end_raid))
         .route("/api/raid/{raid_id}/kills", axum::routing::post(add_kill).get(get_kills))
         .route("/api/raid/current/kills/batch", axum::routing::post(add_batch_kills))
+        .route("/api/stats/session/current", axum::routing::get(get_current_session_stats))
+        .route("/api/stats/raid/{raid_id}", axum::routing::get(get_raid_stats))
         .layer(TraceLayer::new_for_http())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{api, db::tests::setup_test_db};
+    use crate::db::tests::setup_test_db;
     use axum::{body::Body, http::Request};
     use tower::ServiceExt;
 

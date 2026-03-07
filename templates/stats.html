@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+
+{% block title %}All-Time Analytics - Tarkov Stream Producer{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>All-Time Analytics</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem; margin-top: 1rem;">
+        <div class="card" style="margin-bottom: 0; background: rgba(255,255,255,0.05);">
+            <span style="color: var(--text-dim); display: block;">Total Raids</span>
+            <span style="font-size: 2rem; font-weight: bold;">{{ global_stats.total_raids }}</span>
+        </div>
+        <div class="card" style="margin-bottom: 0; background: rgba(255,255,255,0.05);">
+            <span style="color: var(--text-dim); display: block;">Survival Rate</span>
+            <span style="font-size: 2rem; font-weight: bold;">{{ "{:.1}"|format(global_stats.survival_rate * 100.0) }}%</span>
+        </div>
+        <div class="card" style="margin-bottom: 0; background: rgba(255,255,255,0.05);">
+            <span style="color: var(--text-dim); display: block;">Total Kills</span>
+            <span style="font-size: 2rem; font-weight: bold;">{{ global_stats.total_kills }}</span>
+        </div>
+        <div class="card" style="margin-bottom: 0; background: rgba(255,255,255,0.05);">
+            <span style="color: var(--text-dim); display: block;">Global K/D</span>
+            <span style="font-size: 2rem; font-weight: bold;">{{ "{:.2}"|format(global_stats.kd_ratio) }}</span>
+        </div>
+    </div>
+    
+    <div style="margin-top: 2rem;">
+        <p><strong>Average Raid Duration:</strong> {{ formatted_avg_duration }}</p>
+    </div>
+</div>
+{% endblock %}

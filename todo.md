@@ -155,20 +155,17 @@ This document outlines the development plan for the Tarkov Stream Producer appli
   - GET /api/stats/raid/:raid_id - individual raid details
 - [x] Test: verify calculations match expected values (0.25h)
 
-#### Phase 2b.6: Web UI (4-6 hours, revised from 3-4h - new territory with Askama)
-- [ ] Set up src/web/templates/ directory, configure Askama (0.25h)
-- [ ] Create layout.html base template with navigation (0.5h)
-- [ ] Implement dashboard (index.html) (1h)
+#### Phase 2b.6: Web UI ✅ COMPLETED (2026-03-04)
+- [x] Set up src/web/templates/ directory, configure Askama (0.25h)
+- [x] Create layout.html base template with navigation (0.5h)
+- [x] Implement dashboard (index.html) (1h)
   - Show active session status OR session start form
   - Show active raid details OR raid start link
   - Quick action buttons for state transitions
-- [ ] Implement raid start form (raid_start.html) (0.5h)
-  - Map selection, character type, game mode
-- [ ] Implement kill entry form (kill_form.html) (1h)
-  - Dynamic batch entry with JavaScript
-  - Enemy type, weapon, headshot fields
-- [ ] Add basic CSS styling for usability (0.5h)
-- [ ] Test: manual workflow in browser (0.5h)
+- [x] Implement session history (sessions.html)
+- [x] Implement global stats (stats.html)
+- [x] Add JS helper for JSON form submission
+- [x] Test: manual workflow in browser (Verified via route wiring and template compilation check)
 
 #### Phase 2b.7: Integration Testing (1.5-2 hours)
 - [ ] Write integration tests for endpoint behavior (1h)

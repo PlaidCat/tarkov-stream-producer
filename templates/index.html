@@ -1,0 +1,206 @@
+{% extends "layout.html" %}
+
+{% block title %}Dashboard - Tarkov Stream Producer{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Current Session</h2>
+    {% if let Some(session) = active_session %}
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <p><strong>Type:</strong> {% match session.session_type %}{% when Some with (t) %}{{ t }}{% when None %}Unknown{% endmatch %}</p>
+                <p><strong>Started:</strong> {{ session.started_at }}</p>
+                {% if let Some(notes) = session.notes %}
+                    <p><strong>Notes:</strong> {{ notes }}</p>
+                {% endif %}
+            </div>
+            <form action="/api/session/end" method="POST">
+                <button type="submit" class="btn btn-danger">End Session</button>
+            </form>
+        </div>
+    {% else %}
+        <p class="status-badge status-inactive">No Active Session</p>
+        <div style="margin-top: 1rem;">
+            <h3>Start New Session</h3>
+            <form action="/api/session" method="POST" style="display: flex; gap: 1rem; align-items: flex-end;">
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem;">Session Type</label>
+                    <select name="session_type" style="padding: 0.5rem; background: #333; color: white; border: 1px solid #444;">
+                        <option value="stream">Stream</option>
+                        <option value="practice">Practice</option>
+                        <option value="recording">Recording</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem;">Notes</label>
+                    <input type="text" name="notes" placeholder="Optional notes..." style="padding: 0.5rem; background: #333; color: white; border: 1px solid #444;">
+                </div>
+                <button type="submit" class="btn">Start Session</button>
+            </form>
+        </div>
+    {% endif %}
+</div>
+
+{% if active_session.is_some() %}
+<div class="card">
+    <h2>Active Raid</h2>
+    {% if let Some(raid) = active_raid %}
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <p><strong>Map:</strong> {{ raid.map_name }}</p>
+                <p><strong>Mode:</strong> {{ raid.game_mode }} ({{ raid.character_type }})</p>
+                <p><strong>State:</strong> <span class="status-badge status-active">{{ raid.current_state }}</span></p>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <h3>Transitions</h3>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    {% if raid.current_state == "stash_management" || raid.current_state == "pre_raid_setup" %}
+                        <form action="/api/raid/transition" method="POST">
+                            <input type="hidden" name="to_state" value="queuing">
+                            <button type="submit" class="btn">Queue</button>
+                        </form>
+                    {% endif %}
+
+                    {% if raid.current_state == "queuing" %}
+                        <form action="/api/raid/transition" method="POST">
+                            <input type="hidden" name="to_state" value="stash_management">
+                            <button type="submit" class="btn btn-danger">Cancel Queue</button>
+                        </form>
+                        <form action="/api/raid/transition" method="POST">
+                            <input type="hidden" name="to_state" value="raid_active">
+                            <button type="submit" class="btn btn-success">Deploying</button>
+                        </form>
+                    {% endif %}
+
+                    {% if raid.current_state == "raid_active" %}
+                        <form action="/api/raid/end" method="POST">
+                            <input type="hidden" name="final_state" value="survived">
+                            <button type="submit" class="btn btn-success">Extract</button>
+                        </form>
+                        <form action="/api/raid/end" method="POST">
+                            <input type="hidden" name="final_state" value="kia">
+                            <button type="submit" class="btn btn-danger">KIA</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 1.5rem; border-top: 1px solid #333; padding-top: 1rem;">
+            <h3>Quick Kill Entry</h3>
+            <form action="/api/raid/{{ raid.raid_id }}/kills" method="POST" style="display: flex; gap: 1rem; align-items: flex-end;">
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem;">Enemy Type</label>
+                    <select name="enemy_type" style="padding: 0.5rem; background: #333; color: white; border: 1px solid #444;">
+                        <option value="scav">Scav</option>
+                        <option value="pmc">PMC</option>
+                        <option value="boss">Boss</option>
+                        <option value="guard">Guard</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem;">Headshot?</label>
+                    <input type="checkbox" name="headshot" value="true">
+                </div>
+                <button type="submit" class="btn btn-success">Log Kill</button>
+            </form>
+        </div>
+    {% else %}
+        <p class="status-badge status-inactive">No Active Raid</p>
+        <div style="margin-top: 1rem;">
+            <form action="/api/raid" method="POST" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem;">Map</label>
+                    <select name="map_name" style="padding: 0.5rem; background: #333; color: white; border: 1px solid #444;">
+                        <option value="Customs">Customs</option>
+                        <option value="Woods">Woods</option>
+                        <option value="Shoreline">Shoreline</option>
+                        <option value="Interchange">Interchange</option>
+                        <option value="Factory">Factory</option>
+                        <option value="Reserve">Reserve</option>
+                        <option value="Lighthouse">Lighthouse</option>
+                        <option value="Streets of Tarkov">Streets</option>
+                        <option value="The Lab">Labs</option>
+                        <option value="Ground Zero">Ground Zero</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem;">Mode</label>
+                    <select name="game_mode" style="padding: 0.5rem; background: #333; color: white; border: 1px solid #444;">
+                        <option value="pvp">PVP</option>
+                        <option value="pve">PVE</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem;">Character</label>
+                    <select name="character_type" style="padding: 0.5rem; background: #333; color: white; border: 1px solid #444;">
+                        <option value="pmc">PMC</option>
+                        <option value="scav">Scav</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn">Start Raid</button>
+            </form>
+        </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if let Some(stats) = session_stats %}
+<div class="card">
+    <h2>Session Stats</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+        <div>
+            <span style="color: var(--text-dim); display: block;">Total Raids</span>
+            <span style="font-size: 1.5rem; font-weight: bold;">{{ stats.total_raids }}</span>
+        </div>
+        <div>
+            <span style="color: var(--text-dim); display: block;">Survival Rate</span>
+            <span style="font-size: 1.5rem; font-weight: bold;">{{ "{:.1}"|format(stats.survival_rate * 100.0) }}%</span>
+        </div>
+        <div>
+            <span style="color: var(--text-dim); display: block;">Total Kills</span>
+            <span style="font-size: 1.5rem; font-weight: bold;">{{ stats.total_kills }}</span>
+        </div>
+        <div>
+            <span style="color: var(--text-dim); display: block;">K/D Ratio</span>
+            <span style="font-size: 1.5rem; font-weight: bold;">{{ "{:.2}"|format(stats.kd_ratio) }}</span>
+        </div>
+        <div>
+            <span style="color: var(--text-dim); display: block;">Avg Duration</span>
+            <span style="font-size: 1.5rem; font-weight: bold;">{{ formatted_avg_duration }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Recent Raids</h2>
+    <table style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+        <thead>
+            <tr style="text-align: left; border-bottom: 2px solid var(--border);">
+                <th style="padding: 0.5rem;">Map</th>
+                <th style="padding: 0.5rem;">Mode</th>
+                <th style="padding: 0.5rem;">Duration</th>
+                <th style="padding: 0.5rem;">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for raid in recent_raids %}
+                <tr style="border-bottom: 1px solid var(--border);">
+                    <td style="padding: 0.5rem;">{{ raid.map_name }}</td>
+                    <td style="padding: 0.5rem;">{{ raid.game_mode }} ({{ raid.character_type }})</td>
+                    <td style="padding: 0.5rem;">
+                        {{ raid.duration }}
+                    </td>
+                    <td style="padding: 0.5rem;">
+                        <span class="status-badge {% if raid.current_state == "survived" %}status-active{% else if raid.ended_at.is_some() %}status-inactive{% else %}status-active{% endif %}">
+                            {{ raid.current_state }}
+                        </span>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

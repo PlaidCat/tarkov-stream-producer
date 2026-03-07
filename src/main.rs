@@ -39,12 +39,12 @@ async fn main() {
     // Build the router and attach the database pool
     let app = api_router().with_state(AppState::new(pool));
 
-    // Start listening on localhost port 3000
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+    // Start listening on all interfaces port 3000
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await
         .expect("Failed to bind to port 3000");
 
-    info!("Server listening on http://127.0.0.1:3000");
+    info!("Server listening on http://0.0.0.0:3000");
 
     // This line blocks forever, handleing incoming requests
     axum::serve(listener, app)

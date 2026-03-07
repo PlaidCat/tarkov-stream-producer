@@ -6,9 +6,13 @@ use crate::api::handlers::session::{create_session, get_current_session, end_cur
 use crate::api::handlers::raid::{create_raid, get_current_raid, transition_state, end_raid};
 use crate::api::handlers::kill::{add_kill, get_kills, add_batch_kills};
 use crate::api::handlers::stats::{get_current_session_stats, get_raid_stats};
+use crate::api::handlers::web::{index, list_sessions, global_stats};
 
 pub fn api_router() -> Router<AppState> {
     Router::new()
+        .route("/", axum::routing::get(index))
+        .route("/sessions", axum::routing::get(list_sessions))
+        .route("/stats", axum::routing::get(global_stats))
         .route("/health", axum::routing::get(health_check))
         .route("/api/session", axum::routing::post(create_session))
         .route("/api/session/current", axum::routing::get(get_current_session))

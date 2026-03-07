@@ -1,5 +1,6 @@
 use time::OffsetDateTime;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 // ============================================================
 // Enums
@@ -12,12 +13,30 @@ pub enum CharacterType {
     Scav,
 }
 
+impl fmt::Display for CharacterType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CharacterType::PMC => write!(f, "PMC"),
+            CharacterType::Scav => write!(f, "Scav"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, sqlx::Type, Serialize, Deserialize)]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")] // Ensure serde matches sqlx's lowercase
 pub enum GameMode {
     PVE,
     PVP,
+}
+
+impl fmt::Display for GameMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GameMode::PVE => write!(f, "PVE"),
+            GameMode::PVP => write!(f, "PVP"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, sqlx::Type, Serialize, Deserialize)]
@@ -27,6 +46,16 @@ pub enum SessionType {
     Stream,
     Practice,
     Casual,
+}
+
+impl fmt::Display for SessionType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SessionType::Stream => write!(f, "Stream"),
+            SessionType::Practice => write!(f, "Practice"),
+            SessionType::Casual => write!(f, "Casual"),
+        }
+    }
 }
 
 // ============================================================
@@ -73,4 +102,28 @@ pub struct Kill {
     pub weapon_used: Option<String>,
     pub headshot: Option<bool>,
     pub distance_meters: Option<f64>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_character_type_display() {
+        assert_eq!(CharacterType::PMC.to_string(), "PMC");
+        assert_eq!(CharacterType::Scav.to_string(), "Scav");
+    }
+
+    #[test]
+    fn test_game_mode_display() {
+        assert_eq!(GameMode::PVE.to_string(), "PVE");
+        assert_eq!(GameMode::PVP.to_string(), "PVP");
+    }
+
+    #[test]
+    fn test_session_type_display() {
+        assert_eq!(SessionType::Stream.to_string(), "Stream");
+        assert_eq!(SessionType::Practice.to_string(), "Practice");
+        assert_eq!(SessionType::Casual.to_string(), "Casual");
+    }
 }

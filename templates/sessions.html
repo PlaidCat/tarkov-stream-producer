@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+
+{% block title %}Session History - Tarkov Stream Producer{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Session History</h2>
+    <table style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+        <thead>
+            <tr style="text-align: left; border-bottom: 2px solid var(--border);">
+                <th style="padding: 0.5rem;">ID</th>
+                <th style="padding: 0.5rem;">Type</th>
+                <th style="padding: 0.5rem;">Started</th>
+                <th style="padding: 0.5rem;">Duration</th>
+                <th style="padding: 0.5rem;">Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for session in sessions %}
+                <tr style="border-bottom: 1px solid var(--border);">
+                    <td style="padding: 0.5rem;">{{ session.session_id }}</td>
+                    <td style="padding: 0.5rem;">{% match session.session_type %}{% when Some with (t) %}{{ t }}{% when None %}Unknown{% endmatch %}</td>
+                    <td style="padding: 0.5rem;">{{ session.started_at }}</td>
+                    <td style="padding: 0.5rem;">{{ session.duration }}</td>
+                    <td style="padding: 0.5rem;">{% match session.notes %}{% when Some with (n) %}{{ n }}{% when None %}{% endmatch %}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

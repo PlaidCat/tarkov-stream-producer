@@ -1,5 +1,6 @@
 pub enum AppError { 
     DatabaseError(sqlx::Error),
+    TemplateError(askama::Error),
     NotFound(String),
     Conflict(String),
     ValidationError(String),
@@ -9,7 +10,7 @@ pub enum AppError {
 impl AppError {
     pub fn status_code(&self) -> http::StatusCode {
         match self {
-            AppError::DatabaseError(_) => http::StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::DatabaseError(_) | AppError::TemplateError(_) => http::StatusCode::INTERNAL_SERVER_ERROR,
             AppError::NotFound(_) => http::StatusCode::NOT_FOUND,
             AppError::Conflict(_) => http::StatusCode::CONFLICT,
             AppError::ValidationError(_) => http::StatusCode::UNPROCESSABLE_ENTITY,
@@ -22,6 +23,7 @@ impl AppError {
 
         let (error_type, message) = match self {
             AppError::DatabaseError(e) => ("database_error", e.to_string()),
+            AppError::TemplateError(e) => ("template_error", e.to_string()),
             AppError::NotFound(msg) => ("not_found", msg.clone()),
             AppError::Conflict(msg) => ("conflict", msg.clone()),
             AppError::ValidationError(msg) => ("validation_error", msg.clone()),

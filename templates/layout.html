@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Tarkov Stream Producer{% endblock %}</title>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-panel: #1a1a1a;
+            --text-main: #e0e0e0;
+            --text-dim: #a0a0a0;
+            --accent: #d2b48c; /* Tarkov-ish tan/gold */
+            --danger: #ff4d4d;
+            --success: #4dff4d;
+            --border: #333;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        header {
+            background-color: var(--bg-panel);
+            padding: 1rem 2rem;
+            border-bottom: 2px solid var(--accent);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+            color: var(--accent);
+            text-transform: uppercase;
+        }
+
+        nav a {
+            color: var(--text-main);
+            text-decoration: none;
+            margin-left: 1.5rem;
+            font-weight: bold;
+            transition: color 0.3s ease;
+        }
+
+        nav a:hover {
+            color: var(--accent);
+        }
+
+        main {
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn {
+            background-color: var(--accent);
+            color: #000;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: opacity 0.3s ease;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            color: #fff;
+        }
+
+        .btn-success {
+            background-color: var(--success);
+            color: #000;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            background-color: var(--success);
+            color: #000;
+        }
+
+        .status-inactive {
+            background-color: var(--border);
+            color: var(--text-dim);
+        }
+
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Tarkov Stream Producer</h1>
+        <nav>
+            <a href="/">Dashboard</a>
+            <a href="/sessions">History</a>
+            <a href="/stats">Analytics</a>
+        </nav>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        document.addEventListener('submit', async (e) => {
+            const form = e.target;
+            if (!form.action.includes('/api/')) return;
+            
+            e.preventDefault();
+            const formData = new FormData(form);
+            const data = {};
+            
+            formData.forEach((value, key) => {
+                // Handle checkboxes
+                if (form.elements[key].type === 'checkbox') {
+                    data[key] = form.elements[key].checked;
+                } else {
+                    data[key] = value;
+                }
+            });
+
+            try {
+                const response = await fetch(form.action, {
+                    method: form.method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data),
+                });
+
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    const error = await response.json();
+                    alert(`Error: ${error.message || response.statusText}`);
+                }
+            } catch (err) {
+                alert(`Network Error: ${err.message}`);
+            }
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -3,3 +3,4 @@ pub mod kill;
 pub mod raid;
 pub mod session;
 pub mod stats;
+pub mod web;

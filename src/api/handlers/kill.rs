@@ -76,6 +76,68 @@ pub async fn add_batch_kills(
     Ok((StatusCode::CREATED, Json(serde_json::json!({"kill_ids": kill_ids}))))
 }
 
+pub async fn add_vibe_kills(
+    State(state): State<AppState>,
+    Path(raid_id): Path<i64>,
+    Json(req): Json<VibeKillRequest>,
+) -> Result<StatusCode, AppError> {
+    let raid = db::get_raid_by_id(&state.pool, raid_id)
+        .await.map_err(AppError::DatabaseError)?
+        .ok_or_else(|| AppError::NotFound(format!("Raid {} not found", raid_id)))?;
+
+    for line in req.kills_text.lines() {
+        let line = line.trim();
+        if line.is_empty() { continue; }
+
+        // Format: +MM:SS | type | headshot: true
+        let parts: Vec<&str> = line.split('|').map(|s| s.trim()).collect();
+        if parts.len() < 2 { continue; }
+
+        // Parse Time (+MM:SS or +HH:MM:SS)
+        let time_str = parts[0].trim_start_matches('+');
+        let time_parts: Vec<&str> = time_str.split(':').collect();
+        let offset = match time_parts.len() {
+            2 => {
+                let minutes: i64 = time_parts[0].parse().unwrap_or(0);
+                let seconds: i64 = time_parts[1].parse().unwrap_or(0);
+                time::Duration::minutes(minutes) + time::Duration::seconds(seconds)
+            }
+            3 => {
+                let hours: i64 = time_parts[0].parse().unwrap_or(0);
+                let minutes: i64 = time_parts[1].parse().unwrap_or(0);
+                let seconds: i64 = time_parts[2].parse().unwrap_or(0);
+                time::Duration::hours(hours) + time::Duration::minutes(minutes) + time::Duration::seconds(seconds)
+            }
+            _ => continue,
+        };
+
+        // Calculate absolute time
+        let killed_at = raid.started_at + offset;
+
+        // 2. Parse Type
+        let enemy_type = parts[1].to_lowercase();
+
+        // 3. Parse Headshot (optional third part)
+        let headshot = if parts.len() > 2 {
+            Some(parts[2].to_lowercase().contains("true"))
+        } else {
+            None
+        };
+
+        db::add_kill(
+            &state.pool,
+            raid_id,
+            &enemy_type,
+            None, // weapon_used
+            headshot,
+            None, // distance
+            Some(killed_at),
+        ).await.map_err(AppError::DatabaseError)?;
+    }
+
+    Ok(StatusCode::CREATED)
+}
+
 #[cfg(test)]
 mod tests {
     use axum::{body::Body, http::Request};
@@ -194,5 +256,102 @@ mod tests {
                     .body(Body::from(r#"{"kills": [{"enemy_type": "scav"}]}"#))
                     .unwrap(),
             ).await.unwrap();
+    }
+    
+    #[tokio::test]
+    async fn test_add_vibe_kills_success() {
+        let pool = setup_test_db().await.expect("setup db");
+        let raid_id = setup_raid(&pool).await;
+        let app = api_router().with_state(AppState::new(pool.clone()));
+
+        let body = serde_json::json!({
+            "kills_text": "+05:20 | scav | headshot: true\n+10:00 | pmc"
+        }).to_string();
+
+        let response = app
+            .oneshot(
+                Request::post(format!("/api/raid/{}/kills/vibe", raid_id))
+                    .header("content-type", "application/json")
+                    .body(Body::from(body))
+                    .unwrap(),
+            ).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::CREATED);
+
+        let kills = db::get_kills_for_raid(&pool, raid_id).await.expect("kills");
+        assert_eq!(kills.len(), 2);
+        assert_eq!(kills[0].enemy_type, "scav");
+        assert_eq!(kills[0].headshot, Some(true));
+        assert_eq!(kills[1].enemy_type, "pmc");
+        assert_eq!(kills[1].headshot, None);
+    }
+
+    #[tokio::test]
+    async fn test_add_vibe_kills_skips_malformed_lines() {
+        let pool = setup_test_db().await.expect("setup db");
+        let raid_id = setup_raid(&pool).await;
+        let app = api_router().with_state(AppState::new(pool.clone()));
+
+        let body = serde_json::json!({
+            "kills_text": "not valid\n\n+05:20 | scav"
+        }).to_string();
+
+        let response = app
+            .oneshot(
+                Request::post(format!("/api/raid/{}/kills/vibe", raid_id))
+                    .header("content-type", "application/json")
+                    .body(Body::from(body))
+                    .unwrap(),
+            ).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::CREATED);
+
+        let kills = db::get_kills_for_raid(&pool, raid_id).await.expect("kills");
+        assert_eq!(kills.len(), 1);
+        assert_eq!(kills[0].enemy_type, "scav");
+    }
+
+    #[tokio::test]
+    async fn test_add_vibe_kills_not_found() {
+        let pool = setup_test_db().await.expect("setup db");
+        let app = api_router().with_state(AppState::new(pool));
+
+        let body = serde_json::json!({"kills_text": "+05:20 | scav"}).to_string();
+
+        let response = app
+            .oneshot(
+                Request::post("/api/raid/999/kills/vibe")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body))
+                    .unwrap(),
+            ).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_add_vibe_kills_hms_format() {
+        let pool = setup_test_db().await.expect("setup db");
+        let raid_id = setup_raid(&pool).await;
+        let app = api_router().with_state(AppState::new(pool.clone()));
+
+        let body = serde_json::json!({
+            "kills_text": "+01:05:20 | scav | headshot: true"
+        }).to_string();
+
+        let response = app
+            .oneshot(
+                Request::post(format!("/api/raid/{}/kills/vibe", raid_id))
+                    .header("content-type", "application/json")
+                    .body(Body::from(body))
+                    .unwrap(),
+            ).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::CREATED);
+
+        let kills = db::get_kills_for_raid(&pool, raid_id).await.expect("kills");
+        assert_eq!(kills.len(), 1);
+        assert_eq!(kills[0].enemy_type, "scav");
+        assert_eq!(kills[0].headshot, Some(true));
     }
 }

@@ -31,6 +31,14 @@ pub async fn create_raid(
         None, //started_at defaults to now
     ).await.map_err(AppError::DatabaseError)?;
 
+    // Immediately transition to queuing for the "Vibe" workflow
+    db::log_state_transition(
+        &state.pool,
+        raid_id,
+        "queuing",
+        None
+    ).await.map_err(AppError::DatabaseError)?;
+
     Ok((
         StatusCode::CREATED,
         Json(serde_json::json!({"raid_id": raid_id})),
@@ -448,7 +456,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
         let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        assert_eq!(json["current_state"], "stash_management");
+        assert_eq!(json["current_state"], "queuing");
 
         // 3. Transition → in_raid
         let response = app.clone()

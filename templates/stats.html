@@ -24,8 +24,34 @@
         </div>
     </div>
     
-    <div style="margin-top: 2rem;">
-        <p><strong>Average Raid Duration:</strong> {{ formatted_avg_duration }}</p>
+    <div style="margin-top: 2rem; display: flex; gap: 4rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+        <div>
+            <span style="color: var(--text-dim); display: block;">Avg Raid Duration</span>
+            <span style="font-size: 1.2rem; font-weight: bold;">{{ formatted_avg_duration }}</span>
+        </div>
+        <div>
+            <span style="color: var(--text-dim); display: block;">Avg Stash Time</span>
+            <span style="font-size: 1.2rem; font-weight: bold;">{{ formatted_avg_stash_time }}</span>
+        </div>
+        <div>
+            <span style="color: var(--text-dim); display: block;">Avg Queue Time</span>
+            <span style="font-size: 1.2rem; font-weight: bold;">{{ formatted_avg_queue_time }}</span>
+        </div>
+    </div>
+
+    <div style="margin-top: 2rem; display: flex; gap: 4rem;">
+        <div>
+            <span style="color: var(--text-dim); display: block;">Total Raid Time</span>
+            <span style="font-size: 1.2rem; font-weight: bold;">{{ formatted_total_raid_time }}</span>
+        </div>
+        <div>
+            <span style="color: var(--text-dim); display: block;">Total Queue Time</span>
+            <span style="font-size: 1.2rem; font-weight: bold;">{{ formatted_total_queue_time }}</span>
+        </div>
+        <div>
+            <span style="color: var(--text-dim); display: block;">Total Stash Time</span>
+            <span style="font-size: 1.2rem; font-weight: bold;">{{ formatted_total_stash_time }}</span>
+        </div>
     </div>
 </div>
 {% endblock %}

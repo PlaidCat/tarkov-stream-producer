@@ -96,6 +96,11 @@ impl From<crate::models::Kill> for KillResponse {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct VibeKillRequest {
+    pub kills_text: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SessionStatsResponse {
     pub total_raids: i64,
     pub survived_raids: i64,

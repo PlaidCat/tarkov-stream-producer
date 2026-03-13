@@ -59,6 +59,7 @@ mod tests {
     use super::*;
     use crate::api::{routes::api_router, state::AppState}; 
     use crate::db::tests::setup_test_db;
+    use crate::db::log_state_transition;
     use crate::models::{CharacterType, GameMode, SessionType};
     use axum::{body::Body, http::{Request, StatusCode}};
     use tower::ServiceExt;
@@ -217,5 +218,30 @@ mod tests {
         let json: RaidStatsResponse = serde_json::from_slice(&body).unwrap();
 
         assert_eq!(json.state_durations.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_session_stats_time_breakdown() -> Result<(), sqlx::Error> {
+        let pool = setup_test_db().await?;
+        let base_time = OffsetDateTime::now_utc();
+
+        let session_id = crate::db::create_session(&pool, SessionType::Stream, None, Some(base_time)).await?;
+        let raid_id = crate::db::create_raid(&pool, session_id, "Customs", CharacterType::PMC, GameMode::PVP, Some(base_time)).await?;
+
+        // Full flow: pre_raid_setup(2m) → queuing(3m) → deploying_committed(1m) → raid_active(20m) → survived
+        log_state_transition(&pool, raid_id, "pre_raid_setup", Some(base_time)).await?;
+        log_state_transition(&pool, raid_id, "queuing", Some(base_time + time::Duration::minutes(2))).await?;
+        log_state_transition(&pool, raid_id, "deploying_committed", Some(base_time + time::Duration::minutes(5))).await?;
+        log_state_transition(&pool, raid_id, "raid_active", Some(base_time + time::Duration::minutes(6))).await?;
+        log_state_transition(&pool, raid_id, "survived", Some(base_time + time::Duration::minutes(26))).await?;
+        crate::db::end_raid(&pool, raid_id, Some(base_time + time::Duration::minutes(26)), None).await?;
+
+        let stats = calculate_session_stats(&pool, session_id).await?;
+
+        assert_eq!(stats.time_breakdown.total_raid_time, time::Duration::minutes(20));
+        assert_eq!(stats.time_breakdown.total_queue_time, time::Duration::minutes(3));
+        assert_eq!(stats.time_breakdown.avg_queue_time, time::Duration::minutes(3));
+
+        Ok(())
     }
 }

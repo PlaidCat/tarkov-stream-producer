@@ -19,6 +19,14 @@ pub struct FirstRaidDelay {
 }
 
 #[derive(Debug, Clone)]
+pub struct SessionTimeBreakdown {
+    pub total_raid_time: Duration,
+    pub total_queue_time: Duration,
+    pub total_stash_time: Duration,
+    pub avg_queue_time: Duration,
+}
+
+#[derive(Debug, Clone)]
 pub struct SessionStats {
     pub total_raids: i64,
     pub survived_raids: i64,
@@ -26,6 +34,7 @@ pub struct SessionStats {
     pub total_kills: i64,
     pub kd_ratio: f64,
     pub avg_raid_duration: Duration,
+    pub time_breakdown: SessionTimeBreakdown,
 }
 
 #[derive(Debug, Clone)]
@@ -180,7 +189,7 @@ pub async fn calculate_global_stats(
     calculate_stats_from_raids(pool, filtered_raids).await
 }
 
-async fn calculate_stats_from_raids(
+pub async fn calculate_stats_from_raids(
     pool: &SqlitePool,
     raids: Vec<Raid>
 ) -> Result<SessionStats, sqlx::Error> {
@@ -189,6 +198,11 @@ async fn calculate_stats_from_raids(
     let mut total_kills = 0;
     let mut total_duration = Duration::ZERO;
     let mut duration_count = 0;
+    
+    let mut total_raid_time = Duration::ZERO;
+    let mut total_queue_time = Duration::ZERO;
+    let mut total_prep_stash_time = Duration::ZERO;
+    let mut queue_count = 0;
 
     for raid in &raids {
         if raid.current_state == "survived" {
@@ -200,9 +214,27 @@ async fn calculate_stats_from_raids(
             duration_count += 1;
         }
 
+        // Detailed state breakdown for this raid
+        let states = calculate_time_in_state(pool, raid.raid_id).await?;
+        for state in states {
+            match state.state.as_str() {
+                "raid_active" => total_raid_time += state.duration,
+                "queuing" => {
+                    total_queue_time += state.duration;
+                    queue_count += 1;
+                },
+                "stash_management" | "pre_raid_setup" => total_prep_stash_time += state.duration,
+                _ => {}
+            }
+        }
+
         let kills = get_kills_for_raid(pool, raid.raid_id).await?;
         total_kills += kills.len() as i64;
     }
+
+    // Add gaps (between-raid stash time)
+    let gaps = calculate_gaps_from_raids(&raids);
+    let total_stash_time = total_prep_stash_time + gaps.total_gap;
 
     let deaths = total_raids - survived_raids;
 
@@ -224,6 +256,12 @@ async fn calculate_stats_from_raids(
         Duration::ZERO
     };
 
+    let avg_queue_time = if queue_count > 0 {
+        total_queue_time / queue_count as i32
+    } else {
+        Duration::ZERO
+    };
+
     Ok(SessionStats {
         total_raids,
         survived_raids,
@@ -231,6 +269,12 @@ async fn calculate_stats_from_raids(
         total_kills,
         kd_ratio,
         avg_raid_duration: avg_duration,
+        time_breakdown: SessionTimeBreakdown {
+            total_raid_time,
+            total_queue_time,
+            total_stash_time,
+            avg_queue_time,
+        },
     })
 }
 

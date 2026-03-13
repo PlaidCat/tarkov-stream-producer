@@ -16,6 +16,8 @@ This file documents the specific operational rules and role for Gemini in the **
 
 ### 2. Shell Commands
 - **Explicit Confirmation:** I must **always** ask for specific permission before executing *any* shell command (e.g., `cargo test`, `ls`, `git status`).
+- **Preferred Command Pattern:** When requesting validation or coverage, use the following pattern:
+  `DATABASE_URL=sqlite://test.db cargo check && DATABASE_URL=sqlite://test.db cargo tarpaulin --out Lcov --engine llvm --all-features`
 - **Git Operations:** **STRICTLY PROHIBITED.** I will never use `git add` or `git commit`. The user will handle all version control.
 - **Safety First:** I will explain the purpose of any command before requesting to run it.
 
@@ -53,8 +55,8 @@ This file documents the specific operational rules and role for Gemini in the **
 
 ## Current Context
 - **Phase:** Phase 2b (REST API with Web UI).
-- **Immediate Goal:** Phase 2b.3 (Raid Endpoints).
-- **Project State:** Core Analytics (Phase 2a-Extended) complete. Session endpoints (Phase 2b.2) complete. Create Raid and Get Current Raid endpoints (Phase 2b.3) implemented.
+- **Immediate Goal:** Phase 2b.7 (Integration Testing).
+- **Project State:** Core Analytics (Phase 2a-Extended) complete. API Endpoints (Phase 2b.2-2b.5) complete. Web UI (Phase 2b.6) complete with Askama templates and Tarkov-themed CSS. Ready for full-lifecycle integration testing.
 
 ## Technical Learnings (Phase 2a)
 - **Separation of Concerns:** `src/stats.rs` contains **pure logic** (no DB calls). `src/db.rs` handles data fetching. This ensures analytics logic is unit-testable.

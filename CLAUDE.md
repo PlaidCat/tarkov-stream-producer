@@ -10,9 +10,10 @@ gameplay statistics and display them on stream. The project is in early developm
 (Phase 1) with plans to evolve from manual control via REST API to automated screen
 analysis using OCR/vision.
 
-**Current Status:** Phase 2b (REST API) in progress. Phase 2a (Core + Extended) complete with
-4-table schema, CRUD operations, and analytics. Phase 2b.1–2b.4 complete (Core Infrastructure,
-Session Endpoints, Raid Endpoints, Kill Endpoints). Phase 2b.5 (Stats Endpoints) is next.
+**Current Status:** Phase 2b (REST API) functionally complete. Phase 2a (Core + Extended) complete
+with 4-table schema, CRUD operations, and analytics. Phase 2b.1–2b.6 all complete (Core
+Infrastructure, Session Endpoints, Raid Endpoints, Kill Endpoints, Stats Endpoints, Web UI).
+Working tree has uncommitted "vibe mode" enhancements (bulk kill entry, auto-queue on raid create).
 
 ## CRITICAL: Security & Streaming Protection (HIGHEST PRIORITY)
 
@@ -96,9 +97,19 @@ tarkov_stream_producer/
 │       └── handlers/
 │           ├── mod.rs       # Handler module declarations
 │           ├── health.rs    # GET /health endpoint
-│           └── session.rs   # Session CRUD endpoints (in progress)
+│           ├── session.rs   # Session CRUD endpoints
+│           ├── raid.rs      # Raid CRUD + state transition endpoints
+│           ├── kill.rs      # Kill endpoints (add, batch, vibe)
+│           ├── stats.rs     # Stats endpoints (session + raid)
+│           └── web.rs       # HTML UI handlers (dashboard, sessions, stats)
+├── templates/
+│   ├── layout.html          # Base layout with nav and CSS
+│   ├── index.html           # Dashboard (active session/raid, kill entry)
+│   ├── sessions.html        # Session history list
+│   └── stats.html           # Global stats page
 ├── migrations/
-│   └── 20251226000000_initial_schema.sql  # 4-table schema
+│   ├── 20251226000000_initial_schema.sql  # 4-table schema
+│   └── 20260222000000_add_kill_distance.sql  # distance_meters column
 ├── .github/workflows/
 │   ├── ci.yml           # CI pipeline for Linux/Windows
 │   └── release.yml      # Release builds for tagged versions
@@ -224,12 +235,12 @@ Session Time Tracking (Phase 2a-Extended) ✅ COMPLETE
 - Tests pass `Some(timestamp)` for deterministic, fast tests
 - No need for raw SQL in tests - clean API for both production and testing
 
-REST API Development (Phase 2b) - IN PROGRESS
+REST API Development (Phase 2b) ✅ COMPLETE
 
 - **Framework choice:** Axum 0.8 selected for REST API
 - **Development approach:** Test-Driven Development (TDD) with Red-Green-Refactor cycle
 - **Started:** 2026-02-03
-- **Current status:** Phase 2b.4 (Kill Endpoints) ✅ COMPLETE — 62 tests, 94.86% coverage
+- **Current status:** Phase 2b.1–2b.6 all complete. Working tree has uncommitted vibe-mode enhancements.
 - **Completed (2026-02-03 to 2026-02-09):** Phase 2b.1 — Core Infrastructure (AppError, AppState, health endpoint, api_router, server startup)
 - **Completed (2026-02-12):** Phase 2b.2 — Session Endpoints (POST /api/session, GET /api/session/current, POST /api/session/end)
 - **Completed (2026-02-19):** Phase 2b.3 — Raid Endpoints (POST /api/raid, GET /api/raid/current, POST /api/raid/transition, POST /api/raid/end)
@@ -239,8 +250,20 @@ REST API Development (Phase 2b) - IN PROGRESS
   - POST /api/raid/{raid_id}/kills — add single kill to any raid by ID
   - POST /api/raid/current/kills/batch — add multiple kills to active raid
   - GET /api/raid/{raid_id}/kills — list kills for a raid
+- **Completed (2026-03-04):** Phase 2b.5 — Stats Endpoints — 70 tests, 95.20% coverage
+  - GET /api/stats/session/current — K/D, survival rate, raid counts, avg duration
+  - GET /api/stats/raid/{raid_id} — time spent per state for a raid
+- **Completed (2026-03-04):** Phase 2b.6 — Web UI (Askama templates, dark Tarkov theme)
+  - GET / — Dashboard (active session/raid status, state transitions, kill entry)
+  - GET /sessions — Session history list
+  - GET /stats — Global stats page
+  - JS helper in layout.html intercepts HTML forms and sends JSON to the API
+- **Uncommitted (2026-03-12):** Vibe mode enhancements
+  - `create_raid` auto-transitions to `"queuing"` state immediately on creation
+  - POST /api/raid/{raid_id}/kills/vibe — bulk kill entry from text (format: `+MM:SS | type | headshot: true`)
+  - `VibeKillRequest` DTO in dto.rs; `add_vibe_kills` handler in kill.rs
+  - Dashboard updated with Bulk Kill Entry textarea form
 - **Prerequisite change:** Added `Serialize, Deserialize` + `#[serde(rename_all = "lowercase")]` to model enums (SessionType, CharacterType, GameMode) for JSON serialization through the API
-- **Next:** Phase 2b.5 — Stats Endpoints (GET /api/stats/session/current, GET /api/stats/raid/:raid_id)
 
 Planned Architecture (Future Phases)
 

@@ -23,9 +23,14 @@ pub fn format_duration(duration: Duration) -> String {
 #[template(path = "index.html")]
 pub struct IndexTemplate {
     pub active_session: Option<StreamSession>,
+    pub formatted_session_duration: String,
     pub active_raid: Option<Raid>,
     pub session_stats: Option<SessionStats>,
     pub formatted_avg_duration: String,
+    pub formatted_avg_queue_time: String,
+    pub formatted_total_raid_time: String,
+    pub formatted_total_queue_time: String,
+    pub formatted_total_stash_time: String,
     pub recent_raids: Vec<RaidViewModel>,
 }
 
@@ -52,14 +57,25 @@ pub async fn index(
 
     let mut session_stats = None;
     let mut formatted_avg_duration = "00:00".to_string();
+    let mut formatted_avg_queue_time = "00:00".to_string();
+    let mut formatted_total_raid_time = "00:00".to_string();
+    let mut formatted_total_queue_time = "00:00".to_string();
+    let mut formatted_total_stash_time = "00:00".to_string();
+    let mut formatted_session_duration = "00:00".to_string();
     let mut recent_raids = Vec::new();
 
     if let Some(ref session) = active_session {
+        formatted_session_duration = format_duration(OffsetDateTime::now_utc() - session.started_at);
+        
         let stats = calculate_session_stats(&state.pool, session.session_id)
             .await
             .map_err(AppError::DatabaseError)?;
         
         formatted_avg_duration = format_duration(stats.avg_raid_duration);
+        formatted_avg_queue_time = format_duration(stats.time_breakdown.avg_queue_time);
+        formatted_total_raid_time = format_duration(stats.time_breakdown.total_raid_time);
+        formatted_total_queue_time = format_duration(stats.time_breakdown.total_queue_time);
+        formatted_total_stash_time = format_duration(stats.time_breakdown.total_stash_time);
         session_stats = Some(stats);
         
         let raids = db::get_raids_for_session(&state.pool, session.session_id)
@@ -88,9 +104,14 @@ pub async fn index(
 
     let rendered = IndexTemplate {
         active_session,
+        formatted_session_duration,
         active_raid,
         session_stats,
         formatted_avg_duration,
+        formatted_avg_queue_time,
+        formatted_total_raid_time,
+        formatted_total_queue_time,
+        formatted_total_stash_time,
         recent_raids,
     }
     .render()
@@ -150,6 +171,11 @@ pub async fn list_sessions(
 pub struct StatsTemplate {
     pub global_stats: SessionStats,
     pub formatted_avg_duration: String,
+    pub formatted_avg_stash_time: String,
+    pub formatted_avg_queue_time: String,
+    pub formatted_total_raid_time: String,
+    pub formatted_total_queue_time: String,
+    pub formatted_total_stash_time: String,
 }
 
 pub async fn global_stats(
@@ -159,11 +185,25 @@ pub async fn global_stats(
         .await
         .map_err(AppError::DatabaseError)?;
 
+    let gap_stats = crate::stats::calculate_time_between_raids_global(&state.pool)
+        .await
+        .map_err(AppError::DatabaseError)?;
+
     let formatted_avg_duration = format_duration(global_stats.avg_raid_duration);
+    let formatted_avg_stash_time = format_duration(gap_stats.avg_gap);
+    let formatted_avg_queue_time = format_duration(global_stats.time_breakdown.avg_queue_time);
+    let formatted_total_raid_time = format_duration(global_stats.time_breakdown.total_raid_time);
+    let formatted_total_queue_time = format_duration(global_stats.time_breakdown.total_queue_time);
+    let formatted_total_stash_time = format_duration(global_stats.time_breakdown.total_stash_time);
 
     let rendered = StatsTemplate { 
         global_stats,
         formatted_avg_duration,
+        formatted_avg_stash_time,
+        formatted_avg_queue_time,
+        formatted_total_raid_time,
+        formatted_total_queue_time,
+        formatted_total_stash_time,
     }
         .render()
         .map_err(AppError::TemplateError)?;
